@@ -1,0 +1,25 @@
+prometheus:
+  server:
+    retention: "10d"
+    persistentVolume:
+      enabled: true
+      size: 20Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+  
+  alertmanager:
+    enabled: false  # We deploy this separately
+  
+  pushgateway:
+    enabled: false
+  
+  nodeExporter:
+    enabled: true
+  
+  kubeStateMetrics:
+    enabled: true

@@ -1,0 +1,27 @@
+alertmanager:
+  persistence:
+    enabled: true
+    size: 5Gi
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  config:
+    global:
+      resolve_timeout: 5m
+    
+    route:
+      group_by: ['alertname', 'cluster']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'default'
+    
+    receivers:
+      - name: 'default'
+        # Add your notification channels here (email, slack, etc.)

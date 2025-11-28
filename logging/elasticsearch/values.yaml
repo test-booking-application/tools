@@ -1,0 +1,24 @@
+elasticsearch:
+  replicas: 1
+  minimumMasterNodes: 1
+  
+  esConfig:
+    elasticsearch.yml: |
+      xpack.security.enabled: false
+  
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  
+  volumeClaimTemplate:
+    accessModes: [ "ReadWriteOnce" ]
+    resources:
+      requests:
+        storage: 30Gi
+  
+  persistence:
+    enabled: true

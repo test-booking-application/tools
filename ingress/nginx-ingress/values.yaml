@@ -1,0 +1,21 @@
+ingress-nginx:
+  controller:
+    service:
+      type: LoadBalancer
+    
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 90Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+    
+    config:
+      use-forwarded-headers: "true"
+      compute-full-forwarded-for: "true"
