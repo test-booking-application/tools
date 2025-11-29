@@ -14,8 +14,10 @@ tools/
 │   ├── elasticsearch/       # Log storage
 │   ├── kibana/              # Log visualization
 │   └── filebeat/            # Log collection
-└── ingress/
-    └── nginx-ingress/       # Ingress controller
+├── ingress/
+│   └── nginx-ingress/       # Ingress controller
+└── cicd/
+    └── jenkins/             # CI/CD Server
 ```
 
 ## 🚀 Quick Start

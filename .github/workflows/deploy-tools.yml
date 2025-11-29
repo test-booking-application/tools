@@ -16,6 +16,7 @@ on:
           - kibana
           - filebeat
           - nginx-ingress
+          - jenkins
       action:
         description: 'Action'
         required: true
@@ -148,6 +149,20 @@ jobs:
             echo "🗑️ Nginx Ingress removed"
           fi
       
+      - name: Deploy Jenkins
+        if: github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all'
+        run: |
+          cd cicd/jenkins
+          helm dependency update
+          if [ "${{ github.event.inputs.action }}" == "install" ]; then
+            helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait
+            echo "✅ Jenkins deployed"
+            kubectl get svc -n jenkins jenkins
+          else
+            helm uninstall jenkins -n jenkins || true
+            echo "🗑️ Jenkins removed"
+          fi
+      
       - name: Display Access Information
         if: github.event.inputs.action == 'install'
         run: |
@@ -165,3 +180,12 @@ jobs:
           echo ""
           echo "🌐 Ingress LoadBalancer:"
           kubectl get svc -n ingress-nginx 2>/dev/null || echo "Not deployed"
+          echo ""
+          echo "🚀 Access Jenkins:"
+          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Not deployed"
+          echo "   Username: admin"
+          echo "   Password: admin"
+          echo ""
+          echo "💡 Tip: Use port-forward for consistent localhost access:"
+          echo "   kubectl port-forward svc/grafana 3000:80 -n monitoring"
+          echo "   kubectl port-forward svc/jenkins 8080:8080 -n jenkins"
