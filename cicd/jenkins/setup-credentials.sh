@@ -28,20 +28,40 @@ echo "✅ ECR password retrieved"
 echo ""
 echo "🔑 GitHub Personal Access Token Setup"
 echo "-------------------------------------"
-echo "Please create a token at: https://github.com/settings/tokens?type=beta"
-echo ""
-echo "Required permissions:"
-echo "  - Repository access: All repositories (test-booking-application)"
-echo "  - Contents: Read-only"
-echo "  - Metadata: Read-only"
-echo "  - Webhooks: Read and write"
-echo ""
-read -sp "Enter your GitHub Personal Access Token: " GITHUB_TOKEN
-echo ""
 
+# Check if token is already saved
+TOKEN_FILE="$HOME/.jenkins-github-token"
+if [ -f "$TOKEN_FILE" ]; then
+    echo "✅ Found saved GitHub token"
+    GITHUB_TOKEN=$(cat "$TOKEN_FILE")
+    read -p "Use saved token? (y/n): " use_saved
+    if [ "$use_saved" != "y" ]; then
+        GITHUB_TOKEN=""
+    fi
+fi
+
+# Prompt for new token if not using saved one
 if [ -z "$GITHUB_TOKEN" ]; then
-    echo "❌ GitHub token cannot be empty"
-    exit 1
+    echo "Please create a token at: https://github.com/settings/tokens?type=beta"
+    echo ""
+    echo "Required permissions:"
+    echo "  - Repository access: All repositories (test-booking-application)"
+    echo "  - Contents: Read-only"
+    echo "  - Metadata: Read-only"
+    echo "  - Webhooks: Read and write"
+    echo ""
+    read -sp "Enter your GitHub Personal Access Token: " GITHUB_TOKEN
+    echo ""
+    
+    if [ -z "$GITHUB_TOKEN" ]; then
+        echo "❌ GitHub token cannot be empty"
+        exit 1
+    fi
+    
+    # Save token for future use
+    echo "$GITHUB_TOKEN" > "$TOKEN_FILE"
+    chmod 600 "$TOKEN_FILE"
+    echo "💾 Token saved to $TOKEN_FILE (only you can read it)"
 fi
 
 # Create or update the secret
