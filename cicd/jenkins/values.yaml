@@ -20,6 +20,8 @@ jenkins:
       - credentials-binding
       - aws-credentials
       - amazon-ecr
+      - github-branch-source
+      - job-dsl
     
     resources:
       requests:
@@ -61,6 +63,58 @@ jenkins:
                           resourceRequestMemory: "256Mi"
                           resourceLimitCpu: "500m"
                           resourceLimitMemory: "512Mi"
+        
+        credentials-config: |
+          credentials:
+            system:
+              domainCredentials:
+                - credentials:
+                    - string:
+                        id: "sonar-token"
+                        scope: GLOBAL
+                        description: "SonarCloud Token"
+                        secret: "70c0a3a88c94b8692029efb356c3ca49911aef9b"
+                    - usernamePassword:
+                        id: "aws-ecr-creds"
+                        scope: GLOBAL
+                        description: "AWS ECR Credentials"
+                        username: "AWS"
+                        password: "{AQAAABAAAAAwZXByZXNzaW9uIHBsYWNlaG9sZGVyfQ==}"
+                    - string:
+                        id: "github-token"
+                        scope: GLOBAL
+                        description: "GitHub Personal Access Token"
+                        secret: "{AQAAABAAAAAwR2l0SHViIFRva2VuIFBsYWNlaG9sZGVyfQ==}"
+        
+        jobs-config: |
+          jobs:
+            - script: >
+                organizationFolder('test-booking-application') {
+                  description('Auto-discover all microservices in test-booking-application organization')
+                  displayName('Ticket Booking Microservices')
+                  organizations {
+                    github {
+                      repoOwner('test-booking-application')
+                      credentialsId('github-token')
+                      traits {
+                        gitHubBranchDiscovery {
+                          strategyId(1)
+                        }
+                        gitHubPullRequestDiscovery {
+                          strategyId(1)
+                        }
+                      }
+                    }
+                  }
+                  orphanedItemStrategy {
+                    discardOldItems {
+                      numToKeep(10)
+                    }
+                  }
+                  triggers {
+                    periodic(15)
+                  }
+                }
   
   agent:
     enabled: true
