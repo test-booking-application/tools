@@ -1,57 +1,42 @@
-# Jenkins Auto-Configuration Setup
+# Jenkins Auto-Configuration with Kubernetes Secrets
 
-This Jenkins deployment uses **Configuration as Code (JCasC)** to automatically configure credentials and jobs on startup.
+This Jenkins deployment uses **Configuration as Code (JCasC)** with **Kubernetes Secrets** for secure credential management.
 
-## 🔧 What's Auto-Configured
+## 🔒 Security Approach
 
-### ✅ Credentials (Pre-configured)
-1. **SonarCloud Token** (`sonar-token`)
-   - Already configured in `values.yaml`
-   - No action needed
+Credentials are stored as **Kubernetes Secrets** (not in `values.yaml`), which is:
+- ✅ More secure (secrets encrypted at rest)
+- ✅ Not committed to Git
+- ✅ Easy to rotate
+- ✅ Production-ready
 
-### ⚠️ Credentials (Need Manual Setup)
-2. **AWS ECR Credentials** (`aws-ecr-creds`)
-   - **Before deploying Jenkins**, get your ECR password:
-     ```bash
-     aws ecr get-login-password --region us-east-1
-     ```
-   - Update `values.yaml` line 80:
-     ```yaml
-     password: "YOUR_ECR_PASSWORD_HERE"
-     ```
+## 🚀 Quick Start
 
-3. **GitHub Token** (`github-token`)
-   - Create a GitHub Personal Access Token:
-     - Go to: https://github.com/settings/tokens
-     - Generate new token (classic)
-     - Scopes needed: `repo`, `admin:org`, `admin:repo_hook`
-   - Update `values.yaml` line 87:
-     ```yaml
-     secret: "YOUR_GITHUB_TOKEN_HERE"
-     ```
+### 1. Create Credentials Secret
 
-### ✅ Jobs (Auto-created)
-- **GitHub Organization Folder**: `test-booking-application`
-  - Auto-discovers all repos with `Jenkinsfile`
-  - Scans every 15 minutes for new repos
-  - Creates jobs automatically
-
-## 🚀 Deployment Steps
-
-### 1. Update Credentials in values.yaml
+Run the setup script:
 
 ```bash
 cd tools/cicd/jenkins
-# Edit values.yaml and replace placeholders
-nano values.yaml
+./setup-credentials.sh
 ```
 
-Replace these lines:
-- Line 80: `password: "{AQAAABAAAAAwZXByZXNzaW9uIHBsYWNlaG9sZGVyfQ==}"`
-  → `password: "YOUR_ECR_PASSWORD"`
-  
-- Line 87: `secret: "{AQAAABAAAAAwR2l0SHViIFRva2VuIFBsYWNlaG9sZGVyfQ==}"`
-  → `secret: "YOUR_GITHUB_TOKEN"`
+This will:
+1. Get your AWS ECR password automatically
+2. Prompt you for GitHub Personal Access Token
+3. Create a Kubernetes Secret with all credentials
+
+**GitHub Token Setup:**
+- Go to: https://github.com/settings/tokens?type=beta
+- Create **Fine-grained token**:
+  - Name: `Jenkins CI/CD`
+  - Expiration: 90 days
+  - Resource owner: `test-booking-application`
+  - Repository access: All repositories
+  - Permissions:
+    - Contents: Read-only
+    - Metadata: Read-only  
+    - Webhooks: Read and write
 
 ### 2. Deploy Jenkins
 
@@ -66,62 +51,116 @@ helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml
 # Port-forward
 kubectl port-forward svc/jenkins 8080:8080 -n jenkins
 
-# Or use the access script
+# Or use access script
 ../../access-tools.sh
 ```
 
-Open: http://localhost:8080
+Open: http://localhost:8080  
 Login: `admin` / `admin`
 
-### 4. Verify Auto-Configuration
+## ✅ What Gets Auto-Configured
 
-1. Go to **Manage Jenkins** → **Credentials**
-   - You should see: `sonar-token`, `aws-ecr-creds`, `github-token`
+When Jenkins starts, it automatically:
 
-2. Go to **Dashboard**
-   - You should see: `Ticket Booking Microservices` folder
-   - It will auto-scan and create jobs for each repo
+1. **Credentials** (from Kubernetes Secret):
+   - ✅ `sonar-token` - SonarCloud authentication
+   - ✅ `aws-ecr-creds` - AWS ECR push/pull
+   - ✅ `github-token` - GitHub API access
+
+2. **Jobs**:
+   - ✅ GitHub Organization Folder: `test-booking-application`
+   - ✅ Auto-discovers repos with `Jenkinsfile`
+   - ✅ Creates Multibranch Pipeline jobs
+   - ✅ Scans every 15 minutes
+
+3. **Plugins**:
+   - All required plugins pre-installed
 
 ## 🔄 After Destroy/Recreate
 
-Since credentials are in `values.yaml`, you only need to:
+Since ECR password expires every 12 hours, you'll need to refresh it:
 
-1. **Get fresh ECR password** (changes every 12 hours):
-   ```bash
-   aws ecr get-login-password --region us-east-1
-   ```
+```bash
+cd tools/cicd/jenkins
+./setup-credentials.sh
+```
 
-2. **Update values.yaml** with new password
+Then redeploy:
 
-3. **Redeploy Jenkins**:
-   ```bash
-   helm upgrade --install jenkins . -n jenkins -f values.yaml
-   ```
+```bash
+helm upgrade --install jenkins . -n jenkins -f values.yaml
+```
 
-Everything else (SonarCloud token, GitHub token, jobs) will be auto-configured!
+Everything else (GitHub token, SonarCloud token) persists until you change them.
 
-## 🔒 Security Note
+## 🔐 Security Best Practices
 
-**WARNING:** The `values.yaml` file now contains secrets. 
+### ✅ What We're Doing Right:
+- Secrets stored in Kubernetes (encrypted at rest)
+- Not committed to Git
+- Fine-grained GitHub tokens
+- ECR password auto-rotates every 12 hours
 
-**Do NOT commit this file with real credentials to Git!**
+### 🔒 For Production:
+- Use AWS Secrets Manager or HashiCorp Vault
+- Enable Kubernetes Secret encryption
+- Use IRSA (IAM Roles for Service Accounts) for AWS
+- Rotate GitHub tokens regularly
 
-Options:
-1. Use `.gitignore` to exclude `values.yaml`
-2. Use Kubernetes Secrets instead (more secure)
-3. Use a secrets manager (AWS Secrets Manager, Vault)
+## 📋 Verifying Setup
 
-For learning purposes, the current approach is acceptable, but for production, use proper secrets management.
+After deployment, verify in Jenkins:
 
-## 📚 What Gets Auto-Created
+1. **Credentials:**
+   - Go to: Manage Jenkins → Credentials
+   - Should see: `sonar-token`, `aws-ecr-creds`, `github-token`
 
-When Jenkins starts, it will:
+2. **Jobs:**
+   - Dashboard should show: `Ticket Booking Microservices` folder
+   - It will scan and create jobs for:
+     - user-service
+     - ticket-service
+     - booking-service
+     - frontend
+     - api-gateway
 
-1. ✅ Create all credentials
-2. ✅ Create GitHub Organization Folder
-3. ✅ Scan `test-booking-application` organization
-4. ✅ Discover repos: `user-service`, `ticket-service`, `booking-service`, `frontend`, `api-gateway`
-5. ✅ Create Multibranch Pipeline jobs for each
-6. ✅ Trigger initial builds
+3. **First Build:**
+   - Jobs will trigger automatically
+   - Check build logs for any issues
+
+## 🛠️ Troubleshooting
+
+### Secret not found error:
+```bash
+# Verify secret exists
+kubectl get secret jenkins-credentials -n jenkins
+
+# Check secret contents (base64 encoded)
+kubectl get secret jenkins-credentials -n jenkins -o yaml
+```
+
+### ECR authentication fails:
+```bash
+# Refresh ECR password
+./setup-credentials.sh
+helm upgrade --install jenkins . -n jenkins -f values.yaml
+```
+
+### GitHub scanning fails:
+- Verify token has correct permissions
+- Check token hasn't expired
+- Ensure organization name is correct
+
+## 📚 What Happens on Deploy
+
+1. Kubernetes creates `jenkins-credentials` Secret
+2. Jenkins pod starts
+3. Secret values injected as environment variables
+4. JCasC reads environment variables
+5. Credentials created in Jenkins
+6. Organization Folder created
+7. GitHub scan triggered
+8. Jobs created automatically
+9. Initial builds start
 
 **Zero manual configuration needed!** 🎉

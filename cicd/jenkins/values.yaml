@@ -9,6 +9,24 @@ jenkins:
     servicePort: 8080
     serviceType: LoadBalancer
     
+    # Inject secrets as environment variables for JCasC
+    containerEnv:
+      - name: SONAR_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: jenkins-credentials
+            key: sonar-token
+      - name: ECR_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: jenkins-credentials
+            key: ecr-password
+      - name: GITHUB_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: jenkins-credentials
+            key: github-token
+    
     installPlugins:
       - kubernetes
       - workflow-aggregator
@@ -73,18 +91,18 @@ jenkins:
                         id: "sonar-token"
                         scope: GLOBAL
                         description: "SonarCloud Token"
-                        secret: "70c0a3a88c94b8692029efb356c3ca49911aef9b"
+                        secret: "${SONAR_TOKEN}"
                     - usernamePassword:
                         id: "aws-ecr-creds"
                         scope: GLOBAL
                         description: "AWS ECR Credentials"
                         username: "AWS"
-                        password: "{AQAAABAAAAAwZXByZXNzaW9uIHBsYWNlaG9sZGVyfQ==}"
+                        password: "${ECR_PASSWORD}"
                     - string:
                         id: "github-token"
                         scope: GLOBAL
                         description: "GitHub Personal Access Token"
-                        secret: "{AQAAABAAAAAwR2l0SHViIFRva2VuIFBsYWNlaG9sZGVyfQ==}"
+                        secret: "${GITHUB_TOKEN}"
         
         jobs-config: |
           jobs:
