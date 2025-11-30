@@ -1,21 +1,25 @@
 jenkins:
   controller:
-    adminPassword: "admin"
+    image:
+      repository: "jenkins/jenkins"
+      tag: "2.479.2-lts"
+    admin:
+      password: "admin"
     
     servicePort: 8080
     serviceType: LoadBalancer
     
     installPlugins:
-      - kubernetes:4029.v5712230ccb_f8
-      - workflow-aggregator:596.v8c21c963d92d
-      - git:5.2.0
-      - configuration-as-code:1689.v1c96b_d5729e0
-      - docker-workflow:580.vc0c340686b_54
-      - pipeline-stage-view:2.34
-      - blueocean:1.27.9
-      - credentials-binding:648.va_8f3e0f0b_19c
-      - aws-credentials:218.v1b_e9466ec5da_
-      - amazon-ecr:1.78.v9c04200f30a_5
+      - kubernetes
+      - workflow-aggregator
+      - git
+      - configuration-as-code
+      - docker-workflow
+      - pipeline-stage-view
+      - blueocean
+      - credentials-binding
+      - aws-credentials
+      - amazon-ecr
     
     resources:
       requests:
