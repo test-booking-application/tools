@@ -108,6 +108,15 @@ jenkins:
                           resourceLimitCpu: "500m"
                           resourceLimitMemory: "512Mi"
         
+        github-config: |
+          unclassified:
+            gitHubPluginConfig:
+              configs:
+                - name: "GitHub"
+                  apiUrl: "https://api.github.com"
+                  credentialsId: "github-token"
+                  manageHooks: true
+        
         credentials-config: |
           credentials:
             system:
@@ -138,6 +147,7 @@ jenkins:
                   displayName('Ticket Booking App (New)')
                   organizations {
                     github {
+                      apiUri('https://api.github.com')
                       repoOwner('test-booking-application')
                       credentialsId('github-token')
                       traits {
