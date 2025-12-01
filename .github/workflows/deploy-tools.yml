@@ -57,6 +57,7 @@ jobs:
       
       - name: Deploy Prometheus
         if: github.event.inputs.tool == 'prometheus' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd monitoring/prometheus
           helm dependency update
@@ -70,6 +71,7 @@ jobs:
       
       - name: Deploy Grafana
         if: github.event.inputs.tool == 'grafana' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd monitoring/grafana
           helm dependency update
@@ -84,6 +86,7 @@ jobs:
       
       - name: Deploy Alertmanager
         if: github.event.inputs.tool == 'alertmanager' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd monitoring/alertmanager
           helm dependency update
@@ -97,6 +100,7 @@ jobs:
       
       - name: Deploy Elasticsearch
         if: github.event.inputs.tool == 'elasticsearch' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd logging/elasticsearch
           helm dependency update
@@ -127,6 +131,7 @@ jobs:
       
       - name: Deploy Filebeat
         if: github.event.inputs.tool == 'filebeat' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd logging/filebeat
           helm dependency update
@@ -140,6 +145,7 @@ jobs:
       
       - name: Deploy Nginx Ingress
         if: github.event.inputs.tool == 'nginx-ingress' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd ingress/nginx-ingress
           helm dependency update
