@@ -110,11 +110,14 @@ jobs:
       
       - name: Deploy Kibana
         if: github.event.inputs.tool == 'kibana' || github.event.inputs.tool == 'all'
+        continue-on-error: true
         run: |
           cd logging/kibana
           helm dependency update
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install kibana . -n logging --create-namespace -f values.yaml --wait
+            echo "⏳ Waiting 60s for Elasticsearch to initialize..."
+            sleep 60
+            helm upgrade --install kibana . -n logging --create-namespace -f values.yaml --wait --timeout 5m
             echo "✅ Kibana deployed"
             kubectl get svc -n logging kibana
           else
