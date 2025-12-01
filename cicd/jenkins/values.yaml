@@ -135,9 +135,6 @@ jenkins:
                       numToKeep(10)
                     }
                   }
-                  triggers {
-                    periodic(15)
-                  }
                 }
   
   agent:
