@@ -4,9 +4,9 @@ ingress-nginx:
       type: LoadBalancer
     
     metrics:
-      enabled: true
+      enabled: false
       serviceMonitor:
-        enabled: true
+        enabled: false
     
     resources:
       requests:
