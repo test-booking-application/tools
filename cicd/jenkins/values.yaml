@@ -28,19 +28,37 @@ jenkins:
             key: github-token
     
     installPlugins:
+      # Core Jackson library - must be first to avoid conflicts
+      - jackson2-api:2.17.0-389.va_5c7e45cd806
+      
+      # Core Jenkins plugins
       - kubernetes
       - workflow-aggregator
       - git
       - configuration-as-code
+      
+      # Organization folder and branch discovery plugins (updated to meet dependencies)
+      - cloudbees-folder:6.980.v5a_cc0cb_25881
+      - branch-api:2.1206.vd9f35001c95c
+      - scm-api:703.v72ff4b_259600
+      - workflow-multibranch:795.ve0cb_1f45ca_9a_
+      - workflow-scm-step:427.v4ca_6512e7df1
+      
+      # GitHub integration plugins
+      - github:1.39.0
+      - github-api:1.318-461.v7a_c09c9fa_d63
+      - github-branch-source:1785.v99802b_69816c
+      
+      # Pipeline and Docker plugins
       - docker-workflow
       - pipeline-stage-view
-      - blueocean
       - credentials-binding
+      
+      # AWS plugins
       - aws-credentials
       - amazon-ecr
-      - github
-      - github-api
-      - github-branch-source
+      
+      # Job DSL plugin
       - job-dsl
     
     resources:
@@ -115,9 +133,9 @@ jenkins:
         jobs-config: |
           jobs:
             - script: >
-                organizationFolder('test-booking-application') {
+                organizationFolder('booking-app-org-scan') {
                   description('Auto-discover all microservices in test-booking-application organization')
-                  displayName('Ticket Booking Microservices')
+                  displayName('Ticket Booking App (New)')
                   organizations {
                     github {
                       repoOwner('test-booking-application')
