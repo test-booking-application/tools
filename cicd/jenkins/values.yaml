@@ -43,11 +43,17 @@ jenkins:
     
     resources:
       requests:
-        cpu: "500m"
-        memory: "1Gi"
+        cpu: "1000m"
+        memory: "1.5Gi"
       limits:
         cpu: "2000m"
-        memory: "2Gi"
+        memory: "3Gi"
+    
+    # Give Jenkins more time to start up (critical for t3.medium)
+    startupProbe:
+      failureThreshold: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
     
     persistence:
       enabled: true

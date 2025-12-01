@@ -164,7 +164,7 @@ jobs:
           cd cicd/jenkins
           helm dependency update
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait
+            helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m
             echo "✅ Jenkins deployed"
             kubectl get svc -n jenkins jenkins
           else
