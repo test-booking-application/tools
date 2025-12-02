@@ -107,7 +107,6 @@ jobs:
             helm uninstall alertmanager -n monitoring || true
             echo "🗑️ Alertmanager removed"
           fi
-
       - name: Deploy CloudWatch Monitoring
         if: github.event.inputs.tool == 'cloudwatch-monitoring' || github.event.inputs.tool == 'all'
         continue-on-error: true
@@ -185,8 +184,29 @@ jobs:
             echo "🗑️ Nginx Ingress removed"
           fi
       
+      # ==============================================================================
+      # NEW STEP: Prompt for Jenkins credential setup
+      # ==============================================================================
+      - name: ⚠️ Jenkins Credential Setup Required
+        # This step only runs if Jenkins is being installed
+        if: github.event.inputs.tool == 'jenkins' && github.event.inputs.action == 'install'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.notice('⚠️ IMPORTANT: Jenkins requires manual setup before it can be fully functional.');
+            core.notice('👉 Please run the setup script locally AFTER connecting to your EKS cluster:');
+            core.notice('   tools/cicd/jenkins/setup-credentials.sh');
+            core.notice('👉 After running the script, you must approve this job to continue the deployment.');
+            core.warning('Pausing workflow for manual credential setup. Please review the logs and approve.');
+      
       - name: Deploy Jenkins
         if: github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all'
+        # ADDED: This environment will cause the job to pause and require manual approval
+        # only if Jenkins is being installed.
+        environment: 
+          name: jenkins-approval
+          # Only require approval if we are installing, not uninstalling
+          ${{ github.event.inputs.action == 'install' && 'approval' || '' }}
         run: |
           cd cicd/jenkins
           helm dependency update
