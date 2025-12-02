@@ -3,12 +3,60 @@ name: Deploy Tools to EKS
 on:
   workflow_dispatch:
     inputs:
-      # CHANGED: From 'choice' to 'string' to allow multiple selections
-      tool:
-        description: 'Tool(s) to deploy (comma-separated list, e.g., "prometheus,grafana,nginx-ingress" or "all")'
+      # NEW: A "Select All" convenience checkbox
+      select_all:
+        description: 'Select All Tools'
         required: true
-        type: string
-        default: 'all' # Default value for convenience
+        type: boolean
+        default: false
+
+      # NEW: Individual boolean inputs for each tool. These appear as checkboxes.
+      install_prometheus:
+        description: 'Install Prometheus'
+        required: true
+        type: boolean
+        default: false
+      install_grafana:
+        description: 'Install Grafana'
+        required: true
+        type: boolean
+        default: false
+      install_alertmanager:
+        description: 'Install Alertmanager'
+        required: true
+        type: boolean
+        default: false
+      install_cloudwatch:
+        description: 'Install CloudWatch Monitoring'
+        required: true
+        type: boolean
+        default: false
+      install_elasticsearch:
+        description: 'Install Elasticsearch'
+        required: true
+        type: boolean
+        default: false
+      install_kibana:
+        description: 'Install Kibana'
+        required: true
+        type: boolean
+        default: false
+      install_filebeat:
+        description: 'Install Filebeat'
+        required: true
+        type: boolean
+        default: false
+      install_nginx_ingress:
+        description: 'Install Nginx Ingress'
+        required: true
+        type: boolean
+        default: false
+      install_jenkins:
+        description: 'Install Jenkins'
+        required: true
+        type: boolean
+        default: false
+
       action:
         description: 'Action'
         required: true
@@ -20,20 +68,81 @@ on:
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER_NAME: ticket-booking-eks
-  # ADDED: A new env variable to hold the parsed list of tools
-  TOOLS_LIST: ${{ github.event.inputs.tool }}
 
+# NEW: This job's purpose is to parse the checkbox inputs and create a list of tools to deploy.
 jobs:
-  deploy:
-    # CHANGED: Job name now reflects the specific tool from the matrix
-    name: Deploy ${{ matrix.tool }}
+  determine-tools:
+    name: Determine Tools to Deploy
     runs-on: ubuntu-latest
-    # ADDED: Strategy matrix to loop through selected tools
+    outputs:
+      # This output will be a JSON array of tools, e.g., ["prometheus", "grafana"]
+      selected-tools: ${{ steps.set-matrix.outputs.tools }}
+    steps:
+      - name: Build tool list from inputs
+        id: set-matrix
+        run: |
+          tools=()
+          # If "Select All" is checked, add all tools to the list
+          if [ "${{ github.event.inputs.select_all }}" == "true" ]; then
+            tools+=("prometheus")
+            tools+=("grafana")
+            tools+=("alertmanager")
+            tools+=("cloudwatch-monitoring")
+            tools+=("elasticsearch")
+            tools+=("kibana")
+            tools+=("filebeat")
+            tools+=("nginx-ingress")
+            tools+=("jenkins")
+          else
+            # Otherwise, check each individual checkbox
+            if [ "${{ github.event.inputs.install_prometheus }}" == "true" ]; then
+              tools+=("prometheus")
+            fi
+            if [ "${{ github.event.inputs.install_grafana }}" == "true" ]; then
+              tools+=("grafana")
+            fi
+            if [ "${{ github.event.inputs.install_alertmanager }}" == "true" ]; then
+              tools+=("alertmanager")
+            fi
+            if [ "${{ github.event.inputs.install_cloudwatch }}" == "true" ]; then
+              tools+=("cloudwatch-monitoring")
+            fi
+            if [ "${{ github.event.inputs.install_elasticsearch }}" == "true" ]; then
+              tools+=("elasticsearch")
+            fi
+            if [ "${{ github.event.inputs.install_kibana }}" == "true" ]; then
+              tools+=("kibana")
+            fi
+            if [ "${{ github.event.inputs.install_filebeat }}" == "true" ]; then
+              tools+=("filebeat")
+            fi
+            if [ "${{ github.event.inputs.install_nginx_ingress }}" == "true" ]; then
+              tools+=("nginx-ingress")
+            fi
+            if [ "${{ github.event.inputs.install_jenkins }}" == "true" ]; then
+              tools+=("jenkins")
+            fi
+          fi
+
+          # Convert the bash array into a JSON array string for the matrix
+          # The 'jq' command is a reliable way to do this.
+          json_array=$(printf '%s\n' "${tools[@]}" | jq -R . | jq -s .)
+          echo "tools=${json_array}" >> $GITHUB_OUTPUT
+          echo "Selected tools: ${json_array}"
+
+# This is the main deployment job. It now depends on the job above.
+  deploy:
+    name: Deploy ${{ matrix.tool }}
+    # ADDED: This job needs the output from the 'determine-tools' job
+    needs: determine-tools
+    runs-on: ubuntu-latest
+    
+    # ADDED: Strategy matrix to loop through the tools selected by the user
     strategy:
-      fail-fast: false # Prevents other matrix jobs from failing if one fails
+      fail-fast: false
       matrix:
-        # This will create a job for each tool in the parsed list
-        tool: ${{ fromJson(needs.parse-tools.outputs.tools) }}
+        # The matrix is populated from the output of the previous job
+        tool: ${{ fromJson(needs.determine-tools.outputs.selected-tools) }}
     
     steps:
       - name: Checkout Code
@@ -67,7 +176,7 @@ jobs:
       
       # UPDATED: All if conditions now check against the matrix.tool variable
       - name: Deploy Prometheus
-        if: matrix.tool == 'prometheus' || matrix.tool == 'all'
+        if: matrix.tool == 'prometheus'
         continue-on-error: true
         run: |
           cd monitoring/prometheus
@@ -81,7 +190,7 @@ jobs:
           fi
       
       - name: Deploy Grafana
-        if: matrix.tool == 'grafana' || matrix.tool == 'all'
+        if: matrix.tool == 'grafana'
         continue-on-error: true
         run: |
           cd monitoring/grafana
@@ -96,7 +205,7 @@ jobs:
           fi
       
       - name: Deploy Alertmanager
-        if: matrix.tool == 'alertmanager' || matrix.tool == 'all'
+        if: matrix.tool == 'alertmanager'
         continue-on-error: true
         run: |
           cd monitoring/alertmanager
@@ -109,7 +218,7 @@ jobs:
             echo "🗑️ Alertmanager removed"
           fi
       - name: Deploy CloudWatch Monitoring
-        if: matrix.tool == 'cloudwatch-monitoring' || matrix.tool == 'all'
+        if: matrix.tool == 'cloudwatch-monitoring'
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
@@ -126,7 +235,7 @@ jobs:
           fi
       
       - name: Deploy Elasticsearch
-        if: matrix.tool == 'elasticsearch' || matrix.tool == 'all'
+        if: matrix.tool == 'elasticsearch'
         continue-on-error: true
         run: |
           cd logging/elasticsearch
@@ -140,7 +249,7 @@ jobs:
           fi
       
       - name: Deploy Kibana
-        if: matrix.tool == 'kibana' || matrix.tool == 'all'
+        if: matrix.tool == 'kibana'
         continue-on-error: true
         run: |
           cd logging/kibana
@@ -157,7 +266,7 @@ jobs:
           fi
       
       - name: Deploy Filebeat
-        if: matrix.tool == 'filebeat' || matrix.tool == 'all'
+        if: matrix.tool == 'filebeat'
         continue-on-error: true
         run: |
           cd logging/filebeat
@@ -171,7 +280,7 @@ jobs:
           fi
       
       - name: Deploy Nginx Ingress
-        if: matrix.tool == 'nginx-ingress' || matrix.tool == 'all'
+        if: matrix.tool == 'nginx-ingress'
         continue-on-error: true
         run: |
           cd ingress/nginx-ingress
@@ -186,7 +295,7 @@ jobs:
           fi
       
       - name: Deploy Jenkins
-        if: matrix.tool == 'jenkins' || matrix.tool == 'all'
+        if: matrix.tool == 'jenkins'
         run: |
           cd cicd/jenkins
           helm dependency update
@@ -202,8 +311,6 @@ jobs:
           fi
       
       - name: Display Access Information
-        # This step will now run once for each matrix job.
-        # It's fine, as it will only show info for the tool deployed in that specific job.
         if: github.event.inputs.action == 'install'
         run: |
           echo "========================================="
