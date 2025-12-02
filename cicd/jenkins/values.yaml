@@ -157,6 +157,11 @@ jenkins:
                       numToKeep(10)
                     }
                   }
+                  triggers {
+                    periodicFolderTrigger {
+                      interval('1m')
+                    }
+                  }
                 }
   
   agent:
