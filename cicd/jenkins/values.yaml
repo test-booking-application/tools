@@ -108,15 +108,6 @@ jenkins:
                           resourceLimitCpu: "500m"
                           resourceLimitMemory: "512Mi"
         
-        github-config: |
-          unclassified:
-            gitHubPluginConfig:
-              configs:
-                - name: "GitHub"
-                  apiUrl: "https://api.github.com"
-                  credentialsId: "github-token"
-                  manageHooks: true
-        
         credentials-config: |
           credentials:
             system:
@@ -133,11 +124,12 @@ jenkins:
                         description: "AWS ECR Credentials"
                         username: "AWS"
                         password: "${ECR_PASSWORD}"
-                    - string:
+                    - usernamePassword:
                         id: "github-token"
                         scope: GLOBAL
                         description: "GitHub Personal Access Token"
-                        secret: "${GITHUB_TOKEN}"
+                        username: "${GITHUB_TOKEN}"
+                        password: ""
         
         jobs-config: |
           jobs:
