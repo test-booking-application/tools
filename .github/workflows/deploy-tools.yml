@@ -3,60 +3,21 @@ name: Deploy Tools to EKS
 on:
   workflow_dispatch:
     inputs:
-      # NEW: A "Select All" convenience checkbox
-      select_all:
-        description: 'Select All Tools'
+      tool:
+        description: 'Tool to deploy'
         required: true
-        type: boolean
-        default: false
-
-      # NEW: Individual boolean inputs for each tool. These appear as checkboxes.
-      install_prometheus:
-        description: 'Install Prometheus'
-        required: true
-        type: boolean
-        default: false
-      install_grafana:
-        description: 'Install Grafana'
-        required: true
-        type: boolean
-        default: false
-      install_alertmanager:
-        description: 'Install Alertmanager'
-        required: true
-        type: boolean
-        default: false
-      install_cloudwatch:
-        description: 'Install CloudWatch Monitoring'
-        required: true
-        type: boolean
-        default: false
-      install_elasticsearch:
-        description: 'Install Elasticsearch'
-        required: true
-        type: boolean
-        default: false
-      install_kibana:
-        description: 'Install Kibana'
-        required: true
-        type: boolean
-        default: false
-      install_filebeat:
-        description: 'Install Filebeat'
-        required: true
-        type: boolean
-        default: false
-      install_nginx_ingress:
-        description: 'Install Nginx Ingress'
-        required: true
-        type: boolean
-        default: false
-      install_jenkins:
-        description: 'Install Jenkins'
-        required: true
-        type: boolean
-        default: false
-
+        type: choice
+        options:
+          - all
+          - prometheus
+          - grafana
+          - alertmanager
+          - elasticsearch
+          - kibana
+          - filebeat
+          - nginx-ingress
+          - jenkins
+          - cloudwatch-monitoring
       action:
         description: 'Action'
         required: true
@@ -69,80 +30,10 @@ env:
   AWS_REGION: us-east-1
   EKS_CLUSTER_NAME: ticket-booking-eks
 
-# NEW: This job's purpose is to parse the checkbox inputs and create a list of tools to deploy.
 jobs:
-  determine-tools:
-    name: Determine Tools to Deploy
-    runs-on: ubuntu-latest
-    outputs:
-      # This output will be a JSON array of tools, e.g., ["prometheus", "grafana"]
-      selected-tools: ${{ steps.set-matrix.outputs.tools }}
-    steps:
-      - name: Build tool list from inputs
-        id: set-matrix
-        run: |
-          tools=()
-          # If "Select All" is checked, add all tools to the list
-          if [ "${{ github.event.inputs.select_all }}" == "true" ]; then
-            tools+=("prometheus")
-            tools+=("grafana")
-            tools+=("alertmanager")
-            tools+=("cloudwatch-monitoring")
-            tools+=("elasticsearch")
-            tools+=("kibana")
-            tools+=("filebeat")
-            tools+=("nginx-ingress")
-            tools+=("jenkins")
-          else
-            # Otherwise, check each individual checkbox
-            if [ "${{ github.event.inputs.install_prometheus }}" == "true" ]; then
-              tools+=("prometheus")
-            fi
-            if [ "${{ github.event.inputs.install_grafana }}" == "true" ]; then
-              tools+=("grafana")
-            fi
-            if [ "${{ github.event.inputs.install_alertmanager }}" == "true" ]; then
-              tools+=("alertmanager")
-            fi
-            if [ "${{ github.event.inputs.install_cloudwatch }}" == "true" ]; then
-              tools+=("cloudwatch-monitoring")
-            fi
-            if [ "${{ github.event.inputs.install_elasticsearch }}" == "true" ]; then
-              tools+=("elasticsearch")
-            fi
-            if [ "${{ github.event.inputs.install_kibana }}" == "true" ]; then
-              tools+=("kibana")
-            fi
-            if [ "${{ github.event.inputs.install_filebeat }}" == "true" ]; then
-              tools+=("filebeat")
-            fi
-            if [ "${{ github.event.inputs.install_nginx_ingress }}" == "true" ]; then
-              tools+=("nginx-ingress")
-            fi
-            if [ "${{ github.event.inputs.install_jenkins }}" == "true" ]; then
-              tools+=("jenkins")
-            fi
-          fi
-
-          # Convert the bash array into a JSON array string for the matrix
-          # The 'jq' command is a reliable way to do this.
-          json_array=$(printf '%s\n' "${tools[@]}" | jq -R . | jq -s .)
-          echo "tools=${json_array}" >> $GITHUB_OUTPUT
-          echo "Selected tools: ${json_array}"
-
-# This is the main deployment job. It now depends on the job above.
   deploy:
-    name: Deploy ${{ matrix.tool }}
-    # ADDED: This job needs the output from the 'determine-tools' job
-    needs: determine-tools
+    name: Deploy ${{ github.event.inputs.tool }}
     runs-on: ubuntu-latest
-    
-    # ADDED: Strategy matrix to loop through the tools selected by the user
-    strategy:
-      fail-fast: false
-      matrix:
-        # The matrix is populated from the output of the previous job
-        tool: ${{ fromJson(needs.determine-tools.outputs.selected-tools) }}
     
     steps:
       - name: Checkout Code
@@ -174,9 +65,8 @@ jobs:
           sudo mv /tmp/eksctl /usr/local/bin
           eksctl version
       
-      # UPDATED: All if conditions now check against the matrix.tool variable
       - name: Deploy Prometheus
-        if: matrix.tool == 'prometheus'
+        if: github.event.inputs.tool == 'prometheus' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd monitoring/prometheus
@@ -190,7 +80,7 @@ jobs:
           fi
       
       - name: Deploy Grafana
-        if: matrix.tool == 'grafana'
+        if: github.event.inputs.tool == 'grafana' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd monitoring/grafana
@@ -205,7 +95,7 @@ jobs:
           fi
       
       - name: Deploy Alertmanager
-        if: matrix.tool == 'alertmanager'
+        if: github.event.inputs.tool == 'alertmanager' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd monitoring/alertmanager
@@ -217,8 +107,9 @@ jobs:
             helm uninstall alertmanager -n monitoring || true
             echo "🗑️ Alertmanager removed"
           fi
+
       - name: Deploy CloudWatch Monitoring
-        if: matrix.tool == 'cloudwatch-monitoring'
+        if: github.event.inputs.tool == 'cloudwatch-monitoring' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
@@ -235,7 +126,7 @@ jobs:
           fi
       
       - name: Deploy Elasticsearch
-        if: matrix.tool == 'elasticsearch'
+        if: github.event.inputs.tool == 'elasticsearch' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd logging/elasticsearch
@@ -249,7 +140,7 @@ jobs:
           fi
       
       - name: Deploy Kibana
-        if: matrix.tool == 'kibana'
+        if: github.event.inputs.tool == 'kibana' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd logging/kibana
@@ -266,7 +157,7 @@ jobs:
           fi
       
       - name: Deploy Filebeat
-        if: matrix.tool == 'filebeat'
+        if: github.event.inputs.tool == 'filebeat' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd logging/filebeat
@@ -280,7 +171,7 @@ jobs:
           fi
       
       - name: Deploy Nginx Ingress
-        if: matrix.tool == 'nginx-ingress'
+        if: github.event.inputs.tool == 'nginx-ingress' || github.event.inputs.tool == 'all'
         continue-on-error: true
         run: |
           cd ingress/nginx-ingress
@@ -295,7 +186,7 @@ jobs:
           fi
       
       - name: Deploy Jenkins
-        if: matrix.tool == 'jenkins'
+        if: github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all'
         run: |
           cd cicd/jenkins
           helm dependency update
@@ -314,11 +205,11 @@ jobs:
         if: github.event.inputs.action == 'install'
         run: |
           echo "========================================="
-          echo "Tool Deployment Complete for ${{ matrix.tool }}!"
+          echo "Tool Deployment Complete!"
           echo "========================================="
           echo ""
           echo "📊 Access Grafana:"
-          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Not deployed in this run"
+          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Not deployed"
           echo "   Username: admin"
           echo "   Password: admin"
           echo ""
@@ -326,13 +217,13 @@ jobs:
           echo "   Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#container-insights:infrastructure"
           echo ""
           echo "📊 Access Kibana:"
-          kubectl get svc -n logging kibana 2>/dev/null || echo "Not deployed in this run"
+          kubectl get svc -n logging kibana 2>/dev/null || echo "Not deployed"
           echo ""
           echo "🌐 Ingress LoadBalancer:"
-          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Not deployed in this run"
+          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Not deployed"
           echo ""
           echo "🚀 Access Jenkins:"
-          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Not deployed in this run"
+          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Not deployed"
           echo "   Username: admin"
           echo "   Password: admin"
           echo ""
