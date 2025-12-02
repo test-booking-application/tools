@@ -18,6 +18,7 @@ on:
           - nginx-ingress
           - jenkins
           - cloudwatch-monitoring
+          - external-dns
       action:
         description: 'Action'
         required: true
@@ -200,6 +201,25 @@ jobs:
             helm uninstall jenkins -n jenkins || true
             kubectl delete -f jenkins-rbac.yaml || true
             echo "🗑️ Jenkins removed"
+          fi
+      
+      - name: Deploy ExternalDNS
+        if: github.event.inputs.tool == 'external-dns' || github.event.inputs.tool == 'all'
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "install" ]; then
+            echo "🚀 Installing ExternalDNS..."
+            helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+            helm repo update
+            cd dns/external-dns
+            helm upgrade --install external-dns external-dns/external-dns \
+              -n external-dns \
+              -f values.yaml \
+              --wait --timeout 5m
+            echo "✅ ExternalDNS deployed"
+            kubectl get pods -n external-dns
+          else
+            helm uninstall external-dns -n external-dns || true
+            echo "🗑️ ExternalDNS removed"
           fi
       
       - name: Display Access Information
