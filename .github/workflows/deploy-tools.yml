@@ -3,21 +3,12 @@ name: Deploy Tools to EKS
 on:
   workflow_dispatch:
     inputs:
+      # CHANGED: From 'choice' to 'string' to allow multiple selections
       tool:
-        description: 'Tool to deploy'
+        description: 'Tool(s) to deploy (comma-separated list, e.g., "prometheus,grafana,nginx-ingress" or "all")'
         required: true
-        type: choice
-        options:
-          - all
-          - prometheus
-          - grafana
-          - alertmanager
-          - elasticsearch
-          - kibana
-          - filebeat
-          - nginx-ingress
-          - jenkins
-          - cloudwatch-monitoring
+        type: string
+        default: 'all' # Default value for convenience
       action:
         description: 'Action'
         required: true
@@ -29,11 +20,20 @@ on:
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER_NAME: ticket-booking-eks
+  # ADDED: A new env variable to hold the parsed list of tools
+  TOOLS_LIST: ${{ github.event.inputs.tool }}
 
 jobs:
   deploy:
-    name: Deploy ${{ github.event.inputs.tool }}
+    # CHANGED: Job name now reflects the specific tool from the matrix
+    name: Deploy ${{ matrix.tool }}
     runs-on: ubuntu-latest
+    # ADDED: Strategy matrix to loop through selected tools
+    strategy:
+      fail-fast: false # Prevents other matrix jobs from failing if one fails
+      matrix:
+        # This will create a job for each tool in the parsed list
+        tool: ${{ fromJson(needs.parse-tools.outputs.tools) }}
     
     steps:
       - name: Checkout Code
@@ -65,8 +65,9 @@ jobs:
           sudo mv /tmp/eksctl /usr/local/bin
           eksctl version
       
+      # UPDATED: All if conditions now check against the matrix.tool variable
       - name: Deploy Prometheus
-        if: github.event.inputs.tool == 'prometheus' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'prometheus' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd monitoring/prometheus
@@ -80,7 +81,7 @@ jobs:
           fi
       
       - name: Deploy Grafana
-        if: github.event.inputs.tool == 'grafana' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'grafana' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd monitoring/grafana
@@ -95,7 +96,7 @@ jobs:
           fi
       
       - name: Deploy Alertmanager
-        if: github.event.inputs.tool == 'alertmanager' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'alertmanager' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd monitoring/alertmanager
@@ -107,9 +108,8 @@ jobs:
             helm uninstall alertmanager -n monitoring || true
             echo "🗑️ Alertmanager removed"
           fi
-
       - name: Deploy CloudWatch Monitoring
-        if: github.event.inputs.tool == 'cloudwatch-monitoring' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'cloudwatch-monitoring' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
@@ -126,7 +126,7 @@ jobs:
           fi
       
       - name: Deploy Elasticsearch
-        if: github.event.inputs.tool == 'elasticsearch' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'elasticsearch' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd logging/elasticsearch
@@ -140,7 +140,7 @@ jobs:
           fi
       
       - name: Deploy Kibana
-        if: github.event.inputs.tool == 'kibana' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'kibana' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd logging/kibana
@@ -157,7 +157,7 @@ jobs:
           fi
       
       - name: Deploy Filebeat
-        if: github.event.inputs.tool == 'filebeat' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'filebeat' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd logging/filebeat
@@ -171,7 +171,7 @@ jobs:
           fi
       
       - name: Deploy Nginx Ingress
-        if: github.event.inputs.tool == 'nginx-ingress' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'nginx-ingress' || matrix.tool == 'all'
         continue-on-error: true
         run: |
           cd ingress/nginx-ingress
@@ -186,7 +186,7 @@ jobs:
           fi
       
       - name: Deploy Jenkins
-        if: github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all'
+        if: matrix.tool == 'jenkins' || matrix.tool == 'all'
         run: |
           cd cicd/jenkins
           helm dependency update
@@ -202,14 +202,16 @@ jobs:
           fi
       
       - name: Display Access Information
+        # This step will now run once for each matrix job.
+        # It's fine, as it will only show info for the tool deployed in that specific job.
         if: github.event.inputs.action == 'install'
         run: |
           echo "========================================="
-          echo "Tool Deployment Complete!"
+          echo "Tool Deployment Complete for ${{ matrix.tool }}!"
           echo "========================================="
           echo ""
           echo "📊 Access Grafana:"
-          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Not deployed in this run"
           echo "   Username: admin"
           echo "   Password: admin"
           echo ""
@@ -217,13 +219,13 @@ jobs:
           echo "   Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#container-insights:infrastructure"
           echo ""
           echo "📊 Access Kibana:"
-          kubectl get svc -n logging kibana 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n logging kibana 2>/dev/null || echo "Not deployed in this run"
           echo ""
           echo "🌐 Ingress LoadBalancer:"
-          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Not deployed in this run"
           echo ""
           echo "🚀 Access Jenkins:"
-          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Not deployed in this run"
           echo "   Username: admin"
           echo "   Password: admin"
           echo ""
