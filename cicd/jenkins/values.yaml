@@ -163,6 +163,33 @@ jenkins:
                     }
                   }
                 }
+            
+            - script: >
+                folder('cd-pipelines') {
+                  displayName('CD Pipelines')
+                  description('Continuous Deployment pipelines for microservices')
+                }
+
+                ['ticket-service', 'user-service', 'booking-service', 'api-gateway', 'frontend'].each { appName ->
+                  pipelineJob("cd-pipelines/${appName}-cd") {
+                    displayName("${appName} CD")
+                    definition {
+                      cpsScm {
+                        scm {
+                          git {
+                            remote {
+                              url("https://github.com/test-booking-application/${appName}.git")
+                              credentials('github-token')
+                            }
+                            branch('main')
+                            scriptPath('Jenkinsfile.cd')
+                          }
+                        }
+                        lightweight(true)
+                      }
+                    }
+                  }
+                }
   
   agent:
     enabled: true
