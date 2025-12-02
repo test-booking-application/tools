@@ -55,6 +55,15 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
+
+      - name: Install eksctl
+        run: |
+          ARCH=amd64
+          PLATFORM=$(uname -s)_$ARCH
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+          sudo mv /tmp/eksctl /usr/local/bin
+          eksctl version
       
       - name: Deploy Prometheus
         if: github.event.inputs.tool == 'prometheus' || github.event.inputs.tool == 'all'
