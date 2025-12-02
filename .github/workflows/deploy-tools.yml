@@ -17,6 +17,7 @@ on:
           - filebeat
           - nginx-ingress
           - jenkins
+          - cloudwatch-monitoring
       action:
         description: 'Action'
         required: true
@@ -96,6 +97,23 @@ jobs:
           else
             helm uninstall alertmanager -n monitoring || true
             echo "🗑️ Alertmanager removed"
+          fi
+
+      - name: Deploy CloudWatch Monitoring
+        if: github.event.inputs.tool == 'cloudwatch-monitoring' || github.event.inputs.tool == 'all'
+        continue-on-error: true
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "install" ]; then
+            echo "🚀 Installing CloudWatch Container Insights..."
+            cd monitoring/cloudwatch
+            chmod +x install-addon.sh
+            ./install-addon.sh
+            echo "✅ CloudWatch Monitoring deployed"
+          else
+            echo "🗑️ Removing CloudWatch Monitoring..."
+            aws eks delete-addon --cluster-name ${{ env.EKS_CLUSTER_NAME }} --addon-name amazon-cloudwatch-observability --region ${{ env.AWS_REGION }} || true
+            kubectl delete namespace amazon-cloudwatch || true
+            echo "✅ CloudWatch Monitoring removed"
           fi
       
       - name: Deploy Elasticsearch
@@ -183,6 +201,9 @@ jobs:
           kubectl get svc -n monitoring grafana 2>/dev/null || echo "Not deployed"
           echo "   Username: admin"
           echo "   Password: admin"
+          echo ""
+          echo "📊 Access CloudWatch:"
+          echo "   Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#container-insights:infrastructure"
           echo ""
           echo "📊 Access Kibana:"
           kubectl get svc -n logging kibana 2>/dev/null || echo "Not deployed"
