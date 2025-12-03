@@ -211,6 +211,15 @@ jobs:
           echo "✅ Jenkins deployed with RBAC permissions"
           kubectl get svc -n jenkins jenkins
       
+      - name: Configure GitHub Webhooks
+        if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
+        run: |
+          echo "🔗 Configuring GitHub webhooks..."
+          cd cicd/jenkins
+          chmod +x update-github-webhooks.sh
+          ./update-github-webhooks.sh
+          echo "✅ Webhooks configured successfully"
+      
       - name: Uninstall Jenkins
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'uninstall'
         run: |
