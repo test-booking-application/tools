@@ -29,19 +29,14 @@ echo ""
 echo "🔑 GitHub Personal Access Token Setup"
 echo "-------------------------------------"
 
-# Check if token is already set (e.g. from CI environment)
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "✅ Using GITHUB_TOKEN from environment variable"
-else
-    # Check if token is already saved
-    TOKEN_FILE="$HOME/.jenkins-github-token"
-    if [ -f "$TOKEN_FILE" ]; then
-        echo "✅ Found saved GitHub token"
-        GITHUB_TOKEN=$(cat "$TOKEN_FILE")
-        read -p "Use saved token? (y/n): " use_saved
-        if [ "$use_saved" != "y" ]; then
-            GITHUB_TOKEN=""
-        fi
+# Check if token is already saved
+TOKEN_FILE="$HOME/.jenkins-github-token"
+if [ -f "$TOKEN_FILE" ]; then
+    echo "✅ Found saved GitHub token"
+    GITHUB_TOKEN=$(cat "$TOKEN_FILE")
+    read -p "Use saved token? (y/n): " use_saved
+    if [ "$use_saved" != "y" ]; then
+        GITHUB_TOKEN=""
     fi
 fi
 
