@@ -51,9 +51,9 @@ jobs:
           # Create namespace
           kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
           
-          # Get values.yaml from argocd repo
+          # Get values.yaml from tools repo
           curl -sSL -o /tmp/values.yaml \
-            https://raw.githubusercontent.com/test-booking-application/argocd/main/values.yaml
+            https://raw.githubusercontent.com/test-booking-application/tools/main/cicd/argocd/values.yaml
           
           # Install ArgoCD
           helm upgrade --install argocd argo/argo-cd \
@@ -74,41 +74,27 @@ jobs:
           echo "🔐 ArgoCD Admin Password: $PASSWORD"
           echo "   👉 SAVE THIS PASSWORD!"
           
-          # Get LoadBalancer IP
+          # Deploy DuckDNS Updater for ArgoCD
           echo ""
-          echo "⏳ Waiting for LoadBalancer IP (this takes 2-5 minutes)..."
-          for i in {1..60}; do
-            LB_IP=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
-            if [ -z "$LB_IP" ]; then
-              echo "   Attempt $i/60..."
-              sleep 5
-            else
-              echo ""
-              echo "✅ LoadBalancer IP assigned: $LB_IP"
-              echo ""
-              echo "📋 NEXT STEPS FOR YOUR LEARNING SETUP:"
-              echo "============================================"
-              echo "1️⃣  Point DuckDNS to LoadBalancer IP:"
-              echo "   - Go to: https://www.duckdns.org"
-              echo "   - Sign in with your account"
-              echo "   - Find 'argocd007' domain"
-              echo "   - Update IP to: $LB_IP"
-              echo "   - Hit 'update'"
-              echo ""
-              echo "2️⃣  Wait 5-10 minutes for DNS propagation"
-              echo ""
-              echo "3️⃣  Access ArgoCD:"
-              echo "   - URL: https://argocd007.duckdns.org"
-              echo "   - Username: admin"
-              echo "   - Password: (from above)"
-              echo ""
-              echo "4️⃣  When you destroy EKS (to learn/retry):"
-              echo "   - Run this workflow with 'uninstall' action"
-              echo "   - This removes ArgoCD completely"
-              echo "   - Next time you create EKS, just re-run with 'install'"
-              break
-            fi
-          done
+          echo "🦆 Deploying DuckDNS Updater for ArgoCD..."
+          # Download updater manifest
+          curl -sSL -o /tmp/duckdns-updater-argocd.yaml \
+            https://raw.githubusercontent.com/test-booking-application/tools/main/dns/duckdns-updater-argocd.yaml
+            
+          kubectl apply -f /tmp/duckdns-updater-argocd.yaml
+          
+          # Trigger immediately
+          kubectl create job --from=cronjob/duckdns-updater-argocd duckdns-argocd-init-trigger -n argocd || true
+          echo "✅ DuckDNS Updater deployed and triggered"
+          
+          echo ""
+          echo "📋 ACCESS INSTRUCTIONS:"
+          echo "============================================"
+          echo "1️⃣  Wait 2-5 minutes for DNS propagation"
+          echo "2️⃣  Access ArgoCD:"
+          echo "   - URL: https://argocd007.duckdns.org"
+          echo "   - Username: admin"
+          echo "   - Password: (from above)"
       
       - name: Uninstall ArgoCD
         if: github.event.inputs.action == 'uninstall'
