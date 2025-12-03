@@ -188,9 +188,15 @@ jobs:
       
       - name: Deploy Jenkins (Post-Approval)
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "✅ Approval confirmed — deploying Jenkins"
-          echo "Run credentials script first: ./tools/cicd/jenkins/credentials.sh"
+          
+          echo "🔐 Setting up credentials..."
+          chmod +x tools/cicd/jenkins/setup-credentials.sh
+          ./tools/cicd/jenkins/setup-credentials.sh
+          
           cd cicd/jenkins
           helm dependency update
           
