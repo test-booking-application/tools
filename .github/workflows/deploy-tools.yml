@@ -228,6 +228,13 @@ jobs:
           chmod +x install.sh
           ./install.sh
           echo "✅ ArgoCD deployed successfully"
+          
+          echo "🦆 Deploying ArgoCD DuckDNS Updater..."
+          cd ../../
+          kubectl apply -f tools/dns/duckdns-updater-argocd.yaml
+          # Trigger immediately
+          kubectl create job --from=cronjob/duckdns-updater-argocd duckdns-argocd-init-trigger -n argocd || true
+          echo "✅ ArgoCD DuckDNS Updater deployed"
       
       - name: Configure GitHub Webhooks
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
