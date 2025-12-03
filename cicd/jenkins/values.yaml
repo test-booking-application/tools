@@ -175,24 +175,103 @@ jenkins:
                   displayName('CD Pipelines')
                   description('Continuous Deployment pipelines for microservices')
                 }
-
-                ['ticket-service', 'user-service', 'booking-service', 'api-gateway', 'frontend'].each { appName ->
-                  pipelineJob("cd-pipelines/${appName}-cd") {
-                    displayName("${appName} CD")
-                    definition {
-                      cpsScm {
-                        scm {
-                          git {
-                            remote {
-                              url("https://github.com/test-booking-application/${appName}.git")
-                              credentials('github-token')
-                            }
-                            branch('main')
-                            scriptPath('Jenkinsfile.cd')
+            
+            - script: >
+                pipelineJob('cd-pipelines/ticket-service-cd') {
+                  displayName('ticket-service CD')
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/test-booking-application/ticket-service.git')
+                            credentials('github-token')
                           }
+                          branch('*/main')
                         }
-                        lightweight(true)
                       }
+                      scriptPath('Jenkinsfile.cd')
+                      lightweight(true)
+                    }
+                  }
+                }
+            
+            - script: >
+                pipelineJob('cd-pipelines/user-service-cd') {
+                  displayName('user-service CD')
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/test-booking-application/user-service.git')
+                            credentials('github-token')
+                          }
+                          branch('*/main')
+                        }
+                      }
+                      scriptPath('Jenkinsfile.cd')
+                      lightweight(true)
+                    }
+                  }
+                }
+            
+            - script: >
+                pipelineJob('cd-pipelines/booking-service-cd') {
+                  displayName('booking-service CD')
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/test-booking-application/booking-service.git')
+                            credentials('github-token')
+                          }
+                          branch('*/main')
+                        }
+                      }
+                      scriptPath('Jenkinsfile.cd')
+                      lightweight(true)
+                    }
+                  }
+                }
+            
+            - script: >
+                pipelineJob('cd-pipelines/api-gateway-cd') {
+                  displayName('api-gateway CD')
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/test-booking-application/api-gateway.git')
+                            credentials('github-token')
+                          }
+                          branch('*/main')
+                        }
+                      }
+                      scriptPath('Jenkinsfile.cd')
+                      lightweight(true)
+                    }
+                  }
+                }
+            
+            - script: >
+                pipelineJob('cd-pipelines/frontend-cd') {
+                  displayName('frontend CD')
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/test-booking-application/frontend.git')
+                            credentials('github-token')
+                          }
+                          branch('*/main')
+                        }
+                      }
+                      scriptPath('Jenkinsfile.cd')
+                      lightweight(true)
                     }
                   }
                 }
