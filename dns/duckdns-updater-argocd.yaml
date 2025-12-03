@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: duckdns-updater-argocd
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: duckdns-updater-argocd
+  namespace: argocd
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: duckdns-updater-argocd
+  namespace: argocd
+subjects:
+- kind: ServiceAccount
+  name: duckdns-updater-argocd
+  namespace: argocd
+roleRef:
+  kind: Role
+  name: duckdns-updater-argocd
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: duckdns-updater-argocd
+  namespace: argocd
+spec:
+  schedule: "*/5 * * * *"  # Run every 5 minutes
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: duckdns-updater-argocd
+          containers:
+          - name: updater
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "🔍 Finding ArgoCD LoadBalancer IP..."
+              
+              # Get LoadBalancer Hostname
+              LB_HOSTNAME=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+              
+              if [ -z "$LB_HOSTNAME" ]; then
+                echo "❌ Could not find ArgoCD LoadBalancer Hostname. Is the service running?"
+                exit 1
+              fi
+              
+              echo "📍 Found Hostname: $LB_HOSTNAME"
+              
+              # Resolve Hostname to IP
+              IP=$(getent hosts $LB_HOSTNAME | awk '{ print $1 }' | head -n 1)
+              
+              if [ -z "$IP" ]; then
+                 echo "⚠️ 'getent' failed, trying ping..."
+                 IP=$(ping -c 1 $LB_HOSTNAME | head -n 1 | sed 's/.*(\(.*\)).*/\1/')
+              fi
+
+              if [ -z "$IP" ]; then
+                echo "❌ Could not resolve IP for $LB_HOSTNAME"
+                exit 1
+              fi
+              
+              echo "🔢 Resolved IP: $IP"
+              
+              # Update DuckDNS
+              echo "🚀 Updating DuckDNS for argocd007..."
+              URL="https://www.duckdns.org/update?domains=argocd007&token=45975c84-8d4e-4351-a4ee-e0504f97a17e&ip=$IP"
+              
+              RESPONSE=$(curl -s "$URL")
+              
+              if [ "$RESPONSE" = "OK" ]; then
+                echo "✅ DuckDNS Updated Successfully!"
+              else
+                echo "❌ Failed to update DuckDNS. Response: $RESPONSE"
+                exit 1
+              fi
+          restartPolicy: OnFailure
