@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: duckdns-updater
+  namespace: jenkins
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: duckdns-updater
+  namespace: jenkins
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: duckdns-updater
+  namespace: jenkins
+subjects:
+- kind: ServiceAccount
+  name: duckdns-updater
+  namespace: jenkins
+roleRef:
+  kind: Role
+  name: duckdns-updater
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: duckdns-updater
+  namespace: jenkins
+spec:
+  schedule: "*/5 * * * *"  # Run every 5 minutes
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: duckdns-updater
+          containers:
+          - name: updater
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "🔍 Finding Jenkins LoadBalancer IP..."
+              
+              # Get LoadBalancer Hostname (AWS EKS uses Hostname, not IP directly)
+              LB_HOSTNAME=$(kubectl get svc jenkins -n jenkins -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+              
+              if [ -z "$LB_HOSTNAME" ]; then
+                echo "❌ Could not find Jenkins LoadBalancer Hostname. Is the service running?"
+                exit 1
+              fi
+              
+              echo "📍 Found Hostname: $LB_HOSTNAME"
+              
+              # Resolve Hostname to IP (DuckDNS needs an IP)
+              # We use getent or ping to resolve. 
+              # Since bitnami/kubectl is minimal, we might need a trick.
+              # Let's try ping (usually available) or simple python if installed.
+              
+              # Simple trick to get IP from hostname
+              IP=$(getent hosts $LB_HOSTNAME | awk '{ print $1 }' | head -n 1)
+              
+              if [ -z "$IP" ]; then
+                 echo "⚠️ 'getent' failed, trying ping..."
+                 IP=$(ping -c 1 $LB_HOSTNAME | head -n 1 | sed 's/.*(\(.*\)).*/\1/')
+              fi
+
+              if [ -z "$IP" ]; then
+                echo "❌ Could not resolve IP for $LB_HOSTNAME"
+                exit 1
+              fi
+              
+              echo "🔢 Resolved IP: $IP"
+              
+              # Update DuckDNS
+              echo "🚀 Updating DuckDNS..."
+              URL="https://www.duckdns.org/update?domains=jenkins007&token=45975c84-8d4e-4351-a4ee-e0504f97a17e&ip=$IP"
+              
+              RESPONSE=$(curl -s "$URL")
+              
+              if [ "$RESPONSE" = "OK" ]; then
+                echo "✅ DuckDNS Updated Successfully!"
+              else
+                echo "❌ Failed to update DuckDNS. Response: $RESPONSE"
+                exit 1
+              fi
+          restartPolicy: OnFailure

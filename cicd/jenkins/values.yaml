@@ -87,13 +87,18 @@ jenkins:
             systemMessage: "Jenkins for Ticket Booking Microservices CI/CD"
         
         cloud-config: |
+          unclassified:
+            location:
+              url: "http://jenkins007.duckdns.org:8080/"
+              adminAddress: "admin@example.com"
+          
           jenkins:
             clouds:
               - kubernetes:
                   name: "kubernetes"
                   serverUrl: "https://kubernetes.default"
                   namespace: "jenkins"
-                  jenkinsUrl: "http://jenkins:8080"
+                  jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
                   jenkinsTunnel: "jenkins-agent:50000"
                   templates:
                     - name: "default"
