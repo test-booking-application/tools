@@ -213,6 +213,8 @@ jobs:
       
       - name: Configure GitHub Webhooks
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🔗 Configuring GitHub webhooks..."
           cd cicd/jenkins
