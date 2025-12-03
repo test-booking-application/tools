@@ -86,6 +86,12 @@ jenkins:
           jenkins:
             systemMessage: "Jenkins for Ticket Booking Microservices CI/CD"
         
+        location-config: |
+          unclassified:
+            location:
+              url: "http://jenkins007.duckdns.org:8080/"
+              adminAddress: "admin@example.com"
+        
         cloud-config: |
           jenkins:
             clouds:
