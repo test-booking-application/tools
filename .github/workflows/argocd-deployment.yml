@@ -87,6 +87,18 @@ jobs:
           kubectl create job --from=cronjob/duckdns-updater-argocd duckdns-argocd-init-trigger -n argocd || true
           echo "✅ DuckDNS Updater deployed and triggered"
           
+          # Deploy Applications (App of Apps)
+          echo ""
+          echo "🚀 Deploying Microservices (ArgoCD Apps)..."
+          
+          # Clone argocd repo to get app manifests
+          git clone https://github.com/test-booking-application/argocd.git /tmp/argocd-repo
+          
+          # Apply all application manifests
+          kubectl apply -f /tmp/argocd-repo/argocd-applications/ -n argocd
+          
+          echo "✅ All Applications deployed to ArgoCD!"
+          
           echo ""
           echo "📋 ACCESS INSTRUCTIONS:"
           echo "============================================"
