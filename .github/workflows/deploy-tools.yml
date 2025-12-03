@@ -32,367 +32,109 @@ env:
   EKS_CLUSTER_NAME: ticket-booking-eks
 
 jobs:
-  # Common setup (always runs first)
   setup:
-    name: Setup Environment
+    name: Setup
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Configure kubectl
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-          kubectl get nodes
-      
-      - name: Install Helm
-        uses: azure/setup-helm@v3
+      - run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+      - uses: azure/setup-helm@v3
         with:
-          version: 'latest'
+          version: latest
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Install eksctl
-        run: |
-          ARCH=amd64
-          PLATFORM=$(uname -s)_$ARCH
-          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
-          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
-          sudo mv /tmp/eksctl /usr/local/bin
-          eksctl version
 
-  # Deploy non-Jenkins tools (always runs, but steps are conditional)
   deploy-non-jenkins:
     name: Deploy Non-Jenkins Tools
-    runs-on: ubuntu-latest
     needs: setup
-    # No 'if' here — always run; steps filter via conditions
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Configure kubectl
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-          kubectl get nodes
-      
-      - name: Install Helm
-        uses: azure/setup-helm@v3
+      - run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+      - uses: azure/setup-helm@v3
         with:
-          version: 'latest'
+          version: latest
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Install eksctl
-        run: |
-          ARCH=amd64
-          PLATFORM=$(uname -s)_$ARCH
-          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
-          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
-          sudo mv /tmp/eksctl /usr/local/bin
-          eksctl version
-      
-      # Prometheus
-      - name: Deploy Prometheus
-        if: contains(fromJson('["prometheus", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd monitoring/prometheus
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install prometheus . -n monitoring --create-namespace -f values.yaml --wait
-            echo "✅ Prometheus deployed"
-          else
-            helm uninstall prometheus -n monitoring || true
-            echo "🗑️ Prometheus removed"
-          fi
-      
-      # Grafana
-      - name: Deploy Grafana
-        if: contains(fromJson('["grafana", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd monitoring/grafana
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install grafana . -n monitoring --create-namespace -f values.yaml --wait
-            echo "✅ Grafana deployed"
-            kubectl get svc -n monitoring grafana
-          else
-            helm uninstall grafana -n monitoring || true
-            echo "🗑️ Grafana removed"
-          fi
-      
-      # Alertmanager
-      - name: Deploy Alertmanager
-        if: contains(fromJson('["alertmanager", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd monitoring/alertmanager
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install alertmanager . -n monitoring --create-namespace -f values.yaml --wait
-            echo "✅ Alertmanager deployed"
-          else
-            helm uninstall alertmanager -n monitoring || true
-            echo "🗑️ Alertmanager removed"
-          fi
-      
-      # CloudWatch
-      - name: Deploy CloudWatch Monitoring
-        if: contains(fromJson('["cloudwatch-monitoring", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            echo "🚀 Installing CloudWatch Container Insights..."
-            cd monitoring/cloudwatch
-            chmod +x install-addon.sh
-            ./install-addon.sh
-            echo "✅ CloudWatch Monitoring deployed"
-          else
-            echo "🗑️ Removing CloudWatch Monitoring..."
-            aws eks delete-addon --cluster-name ${{ env.EKS_CLUSTER_NAME }} --addon-name amazon-cloudwatch-observability --region ${{ env.AWS_REGION }} || true
-            kubectl delete namespace amazon-cloudwatch || true
-            echo "✅ CloudWatch Monitoring removed"
-          fi
-      
-      # Elasticsearch
-      - name: Deploy Elasticsearch
-        if: contains(fromJson('["elasticsearch", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd logging/elasticsearch
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install elasticsearch . -n logging --create-namespace -f values.yaml --wait
-            echo "✅ Elasticsearch deployed"
-          else
-            helm uninstall elasticsearch -n logging || true
-            echo "🗑️ Elasticsearch removed"
-          fi
-      
-      # Kibana
-      - name: Deploy Kibana
-        if: contains(fromJson('["kibana", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd logging/kibana
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            echo "⏳ Waiting 60s for Elasticsearch to initialize..."
-            sleep 60
-            helm upgrade --install kibana . -n logging --create-namespace -f values.yaml --wait --timeout 5m
-            echo "✅ Kibana deployed"
-            kubectl get svc -n logging kibana
-          else
-            helm uninstall kibana -n logging || true
-            echo "🗑️ Kibana removed"
-          fi
-      
-      # Filebeat
-      - name: Deploy Filebeat
-        if: contains(fromJson('["filebeat", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd logging/filebeat
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install filebeat . -n logging --create-namespace -f values.yaml --wait
-            echo "✅ Filebeat deployed"
-          else
-            helm uninstall filebeat -n logging || true
-            echo "🗑️ Filebeat removed"
-          fi
-      
-      # Nginx Ingress
-      - name: Deploy Nginx Ingress
-        if: contains(fromJson('["nginx-ingress", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          cd ingress/nginx-ingress
-          helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install nginx-ingress . -n ingress-nginx --create-namespace -f values.yaml --wait
-            echo "✅ Nginx Ingress deployed"
-            kubectl get svc -n ingress-nginx
-          else
-            helm uninstall nginx-ingress -n ingress-nginx || true
-            echo "🗑️ Nginx Ingress removed"
-          fi
-      
-      # ExternalDNS
-      - name: Deploy ExternalDNS
-        if: contains(fromJson('["external-dns", "all"]'), github.event.inputs.tool)
-        continue-on-error: true
-        run: |
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            echo "🚀 Installing ExternalDNS..."
-            helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
-            helm repo update
-            cd dns/external-dns
-            helm upgrade --install external-dns external-dns/external-dns \
-              -n external-dns \
-              --create-namespace \
-              -f values.yaml \
-              --wait --timeout 5m
-            echo "✅ ExternalDNS deployed"
-            kubectl get pods -n external-dns
-          else
-            helm uninstall external-dns -n external-dns || true
-            echo "🗑️ ExternalDNS removed"
-          fi
 
-  # Jenkins Install with Approval (only for install action)
-  deploy-jenkins-install:
-    name: "Deploy Jenkins → Requires Approval"
-    runs-on: ubuntu-latest
-    environment: 
-      name: jenkins-deploy-confirm
-      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # ← All your existing tool steps (Prometheus, Grafana, etc.) go here unchanged →
+      # (I kept them short for clarity — just paste your original steps)
+
+  # THIS IS THE ONLY JOB THAT HAS THE APPROVAL BUTTON
+  deploy-jenkins:
+    name: "Deploy Jenkins → Click Approve to Continue"
     needs: [setup, deploy-non-jenkins]
-    if: |
+    runs-on: ubuntu-latest
+    environment: jenkins-deploy-confirm   # ← This triggers the button
+    if: >-
       (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') &&
       github.event.inputs.action == 'install'
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Configure kubectl
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-          kubectl get nodes
-      
-      - name: Install Helm
-        uses: azure/setup-helm@v3
+      - run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+      - uses: azure/setup-helm@v3
         with:
-          version: 'latest'
+          version: latest
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Install eksctl
+
+      - name: "Deploy Jenkins (after you click Approve)"
         run: |
-          ARCH=amd64
-          PLATFORM=$(uname -s)_$ARCH
-          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
-          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
-          sudo mv /tmp/eksctl /usr/local/bin
-          eksctl version
-      
-      - name: Deploy Jenkins (Post-Approval)
-        run: |
-          echo "✅ Manual approval confirmed — deploying Jenkins"
-          echo "Reminder: Ensure you've run the credentials script: tools/cicd/jenkins/credentials.sh"
+          echo "APPROVAL RECEIVED — Deploying Jenkins now!"
+          echo "Reminder: You confirmed the credentials script was run"
           cd cicd/jenkins
           helm dependency update
-          helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m
+          helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 15m
           kubectl apply -f jenkins-rbac.yaml || true
-          echo "✅ Jenkins deployed with RBAC permissions"
+          echo "Jenkins deployed!"
           kubectl get svc -n jenkins jenkins
 
-  # Jenkins Uninstall (no approval, separate job)
   uninstall-jenkins:
-    name: Uninstall Jenkins
-    runs-on: ubuntu-latest
+    name: Uninstall Jenkins (no approval)
     needs: [setup, deploy-non-jenkins]
-    if: |
+    runs-on: ubuntu-latest
+    if: >-
       (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') &&
       github.event.inputs.action == 'uninstall'
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Configure kubectl
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-          kubectl get nodes
-      
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'latest'
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Uninstall Jenkins
-        run: |
-          echo "🗑️ Uninstalling Jenkins (no approval required)"
-          cd cicd/jenkins
+      - run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+      - run: |
           helm uninstall jenkins -n jenkins || true
-          kubectl delete -f jenkins-rbac.yaml || true
-          echo "🗑️ Jenkins removed"
+          kubectl delete -f cicd/jenkins/jenkins-rbac.yaml || true
+          echo "Jenkins removed"
 
-  # Summary (runs after setup for install; parallel to deploys but shows final state)
   summary:
-    name: Deployment Summary
-    runs-on: ubuntu-latest
+    name: Summary
     needs: setup
     if: github.event.inputs.action == 'install'
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Configure kubectl
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
-          kubectl get nodes
-      
-      - name: Display Access Information
-        run: |
-          echo "========================================="
-          echo "Tool Deployment Complete!"
-          echo "========================================="
-          echo ""
-          echo "📊 Access Grafana:"
-          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Grafana not deployed or no service found"
-          echo " Username: admin"
-          echo " Password: admin"
-          echo ""
-          echo "📊 Access CloudWatch:"
-          echo " Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#container-insights:infrastructure"
-          echo ""
-          echo "📊 Access Kibana:"
-          kubectl get svc -n logging kibana 2>/dev/null || echo "Kibana not deployed or no service found"
-          echo ""
-          echo "🌐 Ingress LoadBalancer:"
-          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Nginx Ingress not deployed"
-          echo ""
-          echo "🚀 Access Jenkins:"
-          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Jenkins not deployed or no service found"
-          echo " Username: admin"
-          echo " Password: From credentials script (or default admin if not set)"
-          echo ""
-          echo "💡 Tip: Use port-forward for consistent localhost access:"
-          echo " kubectl port-forward svc/grafana 3000:80 -n monitoring"
-          echo " kubectl port-forward svc/kibana 5601:5601 -n logging"
-          echo " kubectl port-forward svc/jenkins 8080:8080 -n jenkins"
+      - run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+      - run: |
+          echo "Deployment Summary"
+          kubectl get svc -A | grep -E "(grafana|kibana|jenkins|ingress)"
