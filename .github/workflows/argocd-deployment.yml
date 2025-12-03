@@ -51,9 +51,9 @@ jobs:
           # Create namespace
           kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
           
-          # Get values.yaml from tools repo
+          # Get values.yaml from argocd repo
           curl -sSL -o /tmp/values.yaml \
-            https://raw.githubusercontent.com/test-booking-application/tools/main/cicd/argocd/values.yaml
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/values.yaml
           
           # Install ArgoCD
           helm upgrade --install argocd argo/argo-cd \
