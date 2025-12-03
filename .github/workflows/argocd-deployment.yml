@@ -44,8 +44,6 @@ jobs:
       - name: Install ArgoCD
         if: github.event.inputs.action == 'install'
         run: |
-          cd tools/cicd/argocd
-          
           # Add ArgoCD Helm repo
           helm repo add argo https://argoproj.github.io/argo-helm
           helm repo update
@@ -53,11 +51,15 @@ jobs:
           # Create namespace
           kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
           
+          # Get values.yaml from argocd repo
+          curl -sSL -o /tmp/values.yaml \
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/values.yaml
+          
           # Install ArgoCD
           helm upgrade --install argocd argo/argo-cd \
             --namespace argocd \
             --version 5.51.6 \
-            -f values.yaml \
+            -f /tmp/values.yaml \
             --wait \
             --timeout 10m
           
