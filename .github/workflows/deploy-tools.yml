@@ -186,22 +186,37 @@ jobs:
             echo "🗑️ Nginx Ingress removed"
           fi
       
-      - name: Deploy Jenkins
-        if: github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all'
+      - name: Deploy Jenkins (Post-Approval)
+        if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
         run: |
-          echo "Run credentials script first"
+          echo "✅ Approval confirmed — deploying Jenkins"
+          echo "Run credentials script first: ./tools/cicd/jenkins/credentials.sh"
           cd cicd/jenkins
           helm dependency update
-          if [ "${{ github.event.inputs.action }}" == "install" ]; then
-            helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m
-            kubectl apply -f jenkins-rbac.yaml
-            echo "✅ Jenkins deployed with RBAC permissions"
-            kubectl get svc -n jenkins jenkins
-          else
-            helm uninstall jenkins -n jenkins || true
-            kubectl delete -f jenkins-rbac.yaml || true
-            echo "🗑️ Jenkins removed"
+          
+          # Cleanup stuck releases if any
+          if helm status jenkins -n jenkins >/dev/null 2>&1; then
+            STATUS=$(helm status jenkins -n jenkins -o json | jq -r .info.status)
+            echo "Current release status: $STATUS"
+            if [ "$STATUS" == "pending-install" ] || [ "$STATUS" == "pending-upgrade" ] || [ "$STATUS" == "failed" ]; then
+              echo "⚠️ Release is in stuck state ($STATUS). Attempting rollback..."
+              helm rollback jenkins -n jenkins || helm uninstall jenkins -n jenkins --wait
+            fi
           fi
+
+          # Install with atomic to auto-rollback on failure
+          helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m --atomic
+          
+          kubectl apply -f jenkins-rbac.yaml
+          echo "✅ Jenkins deployed with RBAC permissions"
+          kubectl get svc -n jenkins jenkins
+      
+      - name: Uninstall Jenkins
+        if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'uninstall'
+        run: |
+          helm uninstall jenkins -n jenkins || true
+          kubectl delete -f cicd/jenkins/jenkins-rbac.yaml || true
+          echo "🗑️ Jenkins removed"
       
       - name: Deploy ExternalDNS
         if: github.event.inputs.tool == 'external-dns' || github.event.inputs.tool == 'all'
