@@ -1,4 +1,5 @@
 name: Deploy Tools to EKS
+
 on:
   workflow_dispatch:
     inputs:
@@ -17,7 +18,7 @@ on:
           - nginx-ingress
           - cloudwatch-monitoring
           - external-dns
-          - jenkins  # Note: Jenkins is handled separately
+          - jenkins
       action:
         description: 'Action'
         required: true
@@ -31,12 +32,10 @@ env:
   EKS_CLUSTER_NAME: ticket-booking-eks
 
 jobs:
-  # Common setup job (runs first, provides artifacts if needed, but kept simple)
+  # Common setup (always runs first)
   setup:
     name: Setup Environment
     runs-on: ubuntu-latest
-    outputs:
-      # No outputs needed, but can add if matrix used later
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -67,17 +66,16 @@ jobs:
           sudo mv /tmp/eksctl /usr/local/bin
           eksctl version
 
-  # Deploy all tools EXCEPT Jenkins (runs for any tool selection, including 'all')
+  # Deploy non-Jenkins tools (runs if tool matches, including 'all')
   deploy-non-jenkins:
     name: Deploy Non-Jenkins Tools
     runs-on: ubuntu-latest
     needs: setup
-    if: ${{ always() }}  # Always run if triggered, but steps will filter
+    if: ${{ github.event.inputs.tool != 'jenkins' || github.event.inputs.tool == 'all' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      # Re-run AWS/kubectl/Helm here or use cache/artifacts; for simplicity, duplicate minimal setup
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -104,11 +102,9 @@ jobs:
           sudo mv /tmp/eksctl /usr/local/bin
           eksctl version
       
-      # All original steps EXCEPT Jenkins
+      # Prometheus
       - name: Deploy Prometheus
-        if: |
-          (github.event.inputs.tool == 'prometheus' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["prometheus", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd monitoring/prometheus
@@ -121,10 +117,9 @@ jobs:
             echo "🗑️ Prometheus removed"
           fi
       
+      # Grafana
       - name: Deploy Grafana
-        if: |
-          (github.event.inputs.tool == 'grafana' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["grafana", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd monitoring/grafana
@@ -138,10 +133,9 @@ jobs:
             echo "🗑️ Grafana removed"
           fi
       
+      # Alertmanager
       - name: Deploy Alertmanager
-        if: |
-          (github.event.inputs.tool == 'alertmanager' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["alertmanager", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd monitoring/alertmanager
@@ -154,10 +148,9 @@ jobs:
             echo "🗑️ Alertmanager removed"
           fi
       
+      # CloudWatch
       - name: Deploy CloudWatch Monitoring
-        if: |
-          (github.event.inputs.tool == 'cloudwatch-monitoring' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["cloudwatch-monitoring", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
@@ -173,10 +166,9 @@ jobs:
             echo "✅ CloudWatch Monitoring removed"
           fi
       
+      # Elasticsearch
       - name: Deploy Elasticsearch
-        if: |
-          (github.event.inputs.tool == 'elasticsearch' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["elasticsearch", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd logging/elasticsearch
@@ -189,10 +181,9 @@ jobs:
             echo "🗑️ Elasticsearch removed"
           fi
       
+      # Kibana
       - name: Deploy Kibana
-        if: |
-          (github.event.inputs.tool == 'kibana' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["kibana", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd logging/kibana
@@ -208,10 +199,9 @@ jobs:
             echo "🗑️ Kibana removed"
           fi
       
+      # Filebeat
       - name: Deploy Filebeat
-        if: |
-          (github.event.inputs.tool == 'filebeat' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["filebeat", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd logging/filebeat
@@ -224,10 +214,9 @@ jobs:
             echo "🗑️ Filebeat removed"
           fi
       
+      # Nginx Ingress
       - name: Deploy Nginx Ingress
-        if: |
-          (github.event.inputs.tool == 'nginx-ingress' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["nginx-ingress", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           cd ingress/nginx-ingress
@@ -241,10 +230,9 @@ jobs:
             echo "🗑️ Nginx Ingress removed"
           fi
       
+      # ExternalDNS
       - name: Deploy ExternalDNS
-        if: |
-          (github.event.inputs.tool == 'external-dns' || github.event.inputs.tool == 'all') &&
-          (github.event.inputs.action == 'install' || github.event.inputs.action == 'uninstall')
+        if: contains(fromJson('["external-dns", "all"]'), github.event.inputs.tool)
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.action }}" == "install" ]; then
@@ -254,6 +242,7 @@ jobs:
             cd dns/external-dns
             helm upgrade --install external-dns external-dns/external-dns \
               -n external-dns \
+              --create-namespace \
               -f values.yaml \
               --wait --timeout 5m
             echo "✅ ExternalDNS deployed"
@@ -263,15 +252,17 @@ jobs:
             echo "🗑️ ExternalDNS removed"
           fi
 
-  # Jenkins deploy with approval (only triggers for jenkins or all + install)
-  deploy-jenkins:
+  # Jenkins Install with Approval (only for install action)
+  deploy-jenkins-install:
     name: "Deploy Jenkins → Requires Approval"
     runs-on: ubuntu-latest
     environment: 
-      name: jenkins-deploy-confirm  # Triggers the approval button
+      name: jenkins-deploy-confirm
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    needs: [setup, deploy-non-jenkins]  # Wait for non-Jenkins to finish
-    if: ${{ github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all' }}
+    needs: [setup, deploy-non-jenkins]
+    if: |
+      github.event.inputs.tool == 'jenkins' ||
+      github.event.inputs.tool == 'all'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -305,40 +296,82 @@ jobs:
       - name: Deploy Jenkins (Post-Approval)
         if: github.event.inputs.action == 'install'
         run: |
-          echo "✅ Approval confirmed — deploying Jenkins"
-          echo "Run credentials script first: ./tools/cicd/jenkins/credentials.sh"
+          echo "✅ Manual approval confirmed — deploying Jenkins"
+          echo "Reminder: Ensure you've run the credentials script: tools/cicd/jenkins/credentials.sh"
           cd cicd/jenkins
           helm dependency update
           helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m
-          kubectl apply -f jenkins-rbac.yaml
+          kubectl apply -f jenkins-rbac.yaml || true
           echo "✅ Jenkins deployed with RBAC permissions"
           kubectl get svc -n jenkins jenkins
+
+  # Jenkins Uninstall (no approval, separate job)
+  uninstall-jenkins:
+    name: Uninstall Jenkins
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-non-jenkins]
+    if: |
+      (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') &&
+      github.event.inputs.action == 'uninstall'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
       
-      - name: Uninstall Jenkins (No Approval Needed)
-        if: github.event.inputs.action == 'uninstall'
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Configure kubectl
         run: |
-          echo "🗑️ Uninstalling Jenkins"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+          kubectl get nodes
+      
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+      
+      - name: Uninstall Jenkins
+        run: |
+          echo "🗑️ Uninstalling Jenkins (no approval required)"
           cd cicd/jenkins
           helm uninstall jenkins -n jenkins || true
           kubectl delete -f jenkins-rbac.yaml || true
           echo "🗑️ Jenkins removed"
 
-  # Summary job
+  # Summary (only for install, with setup for kubectl)
   summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [deploy-non-jenkins, deploy-jenkins]
-    if: always()
+    needs: [deploy-non-jenkins, deploy-jenkins-install, uninstall-jenkins]
+    if: github.event.inputs.action == 'install'
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+          kubectl get nodes
+      
       - name: Display Access Information
-        if: github.event.inputs.action == 'install'
         run: |
           echo "========================================="
-          echo "Deployment Complete!"
+          echo "Tool Deployment Complete!"
           echo "========================================="
           echo ""
           echo "📊 Access Grafana:"
-          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n monitoring grafana 2>/dev/null || echo "Grafana not deployed or no service found"
           echo " Username: admin"
           echo " Password: admin"
           echo ""
@@ -346,23 +379,17 @@ jobs:
           echo " Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#container-insights:infrastructure"
           echo ""
           echo "📊 Access Kibana:"
-          kubectl get svc -n logging kibana 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n logging kibana 2>/dev/null || echo "Kibana not deployed or no service found"
           echo ""
           echo "🌐 Ingress LoadBalancer:"
-          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n ingress-nginx 2>/dev/null || echo "Nginx Ingress not deployed"
           echo ""
           echo "🚀 Access Jenkins:"
-          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Not deployed"
+          kubectl get svc -n jenkins jenkins 2>/dev/null || echo "Jenkins not deployed or no service found"
           echo " Username: admin"
-          echo " Password: admin (or from credentials script)"
+          echo " Password: From credentials script (or default admin if not set)"
           echo ""
-          echo "💡 Tip: Use port-forward for localhost access:"
+          echo "💡 Tip: Use port-forward for consistent localhost access:"
           echo " kubectl port-forward svc/grafana 3000:80 -n monitoring"
+          echo " kubectl port-forward svc/kibana 5601:5601 -n logging"
           echo " kubectl port-forward svc/jenkins 8080:8080 -n jenkins"
-      - name: Uninstall Summary
-        if: github.event.inputs.action == 'uninstall'
-        run: |
-          echo "========================================="
-          echo "Uninstall Complete!"
-          echo "========================================="
-          echo "All selected tools have been removed."
