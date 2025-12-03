@@ -56,7 +56,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
-          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Adds missing GITHUB_TOKEN to suppress warning
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install eksctl
         run: |
@@ -67,12 +67,12 @@ jobs:
           sudo mv /tmp/eksctl /usr/local/bin
           eksctl version
 
-  # Deploy non-Jenkins tools (runs if tool matches, including 'all')
+  # Deploy non-Jenkins tools (always runs, but steps are conditional)
   deploy-non-jenkins:
     name: Deploy Non-Jenkins Tools
     runs-on: ubuntu-latest
     needs: setup
-    if: ${{ github.event.inputs.tool != 'jenkins' || github.event.inputs.tool == 'all' }}
+    # No 'if' here — always run; steps filter via conditions
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -93,7 +93,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
-          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Same here for consistency
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install eksctl
         run: |
@@ -285,7 +285,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
-          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Suppress warning
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install eksctl
         run: |
@@ -335,7 +335,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
-          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Suppress warning
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Uninstall Jenkins
         run: |
@@ -345,11 +345,11 @@ jobs:
           kubectl delete -f jenkins-rbac.yaml || true
           echo "🗑️ Jenkins removed"
 
-  # Summary (only for install, with setup for kubectl)
+  # Summary (runs after setup for install; parallel to deploys but shows final state)
   summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [deploy-non-jenkins, deploy-jenkins-install, uninstall-jenkins]
+    needs: setup
     if: github.event.inputs.action == 'install'
     steps:
       - name: Checkout Code
