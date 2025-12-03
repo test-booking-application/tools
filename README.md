@@ -138,7 +138,7 @@ helm uninstall nginx-ingress -n ingress-nginx
 - Monitoring only: t3.medium (2 vCPU, 4GB RAM)
 - Monitoring + ELK: t3.large or m5.large (2 vCPU, 8GB RAM)
 
-## 🔗 Integration
+### 🔗 Integration
 
 - **Grafana** auto-configured to use Prometheus as datasource
 - **Kibana** auto-configured to connect to Elasticsearch
