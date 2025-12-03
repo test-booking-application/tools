@@ -56,6 +56,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Adds missing GITHUB_TOKEN to suppress warning
       
       - name: Install eksctl
         run: |
@@ -92,6 +93,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Same here for consistency
       
       - name: Install eksctl
         run: |
@@ -261,8 +263,8 @@ jobs:
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     needs: [setup, deploy-non-jenkins]
     if: |
-      github.event.inputs.tool == 'jenkins' ||
-      github.event.inputs.tool == 'all'
+      (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') &&
+      github.event.inputs.action == 'install'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -283,6 +285,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Suppress warning
       
       - name: Install eksctl
         run: |
@@ -294,7 +297,6 @@ jobs:
           eksctl version
       
       - name: Deploy Jenkins (Post-Approval)
-        if: github.event.inputs.action == 'install'
         run: |
           echo "✅ Manual approval confirmed — deploying Jenkins"
           echo "Reminder: Ensure you've run the credentials script: tools/cicd/jenkins/credentials.sh"
@@ -333,6 +335,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}  # ← FIX: Suppress warning
       
       - name: Uninstall Jenkins
         run: |
