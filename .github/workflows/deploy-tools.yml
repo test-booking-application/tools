@@ -268,21 +268,34 @@ jobs:
           # Download and apply each application manifest
           mkdir -p /tmp/argocd-apps
           
-          curl -sSL -o /tmp/argocd-apps/frontend-app.yaml \
+          curl -sSL -H "Authorization: token ${GITHUB_TOKEN}" -o /tmp/argocd-apps/frontend-app.yaml \
             https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/frontend-app.yaml
-          curl -sSL -o /tmp/argocd-apps/ticket-service-app.yaml \
+          curl -sSL -H "Authorization: token ${GITHUB_TOKEN}" -o /tmp/argocd-apps/ticket-service-app.yaml \
             https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/ticket-service-app.yaml
-          curl -sSL -o /tmp/argocd-apps/user-service-app.yaml \
+          curl -sSL -H "Authorization: token ${GITHUB_TOKEN}" -o /tmp/argocd-apps/user-service-app.yaml \
             https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/user-service-app.yaml
-          curl -sSL -o /tmp/argocd-apps/booking-service-app.yaml \
+          curl -sSL -H "Authorization: token ${GITHUB_TOKEN}" -o /tmp/argocd-apps/booking-service-app.yaml \
             https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/booking-service-app.yaml
-          curl -sSL -o /tmp/argocd-apps/api-gateway-app.yaml \
+          curl -sSL -H "Authorization: token ${GITHUB_TOKEN}" -o /tmp/argocd-apps/api-gateway-app.yaml \
             https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/api-gateway-app.yaml
           
           # Apply all application manifests
           kubectl apply -f /tmp/argocd-apps/ -n argocd
           
           echo "✅ All Applications deployed to ArgoCD!"
+          
+          echo ""
+          echo "=========================================="
+          echo "🎉 ArgoCD Deployment Complete!"
+          echo "=========================================="
+          echo ""
+          echo "📋 Access Information:"
+          echo "   URL: https://argocd007.duckdns.org"
+          echo "   Username: admin"
+          echo "   Password: $PASSWORD"
+          echo ""
+          echo "⏳ Note: Wait 2-5 minutes for DNS to propagate"
+          echo ""
       
       - name: Configure GitHub Webhooks
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
