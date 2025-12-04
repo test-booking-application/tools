@@ -219,6 +219,19 @@ jobs:
           # Trigger immediately
           kubectl create job --from=cronjob/duckdns-updater duckdns-init-trigger -n jenkins || true
           echo "✅ DuckDNS Updater deployed and triggered"
+          
+          echo ""
+          echo "=========================================="
+          echo "🎉 Jenkins Deployment Complete!"
+          echo "=========================================="
+          echo ""
+          echo "📋 Access Information:"
+          echo "   URL: http://jenkins007.duckdns.org:8080"
+          echo "   Username: admin"
+          echo "   Password: admin"
+          echo ""
+          echo "⏳ Note: Wait 2-5 minutes for DNS to propagate"
+          echo ""
       
       - name: Deploy ArgoCD
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
