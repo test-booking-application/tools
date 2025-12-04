@@ -215,7 +215,7 @@ jobs:
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
         run: |
           echo "🦆 Deploying DuckDNS Updater..."
-          kubectl apply -f tools/dns/duckdns-updater.yaml
+          kubectl apply -f dns/duckdns-updater.yaml
           # Trigger immediately
           kubectl create job --from=cronjob/duckdns-updater duckdns-init-trigger -n jenkins || true
           echo "✅ DuckDNS Updater deployed and triggered"
@@ -231,22 +231,10 @@ jobs:
           
           echo "🦆 Deploying ArgoCD DuckDNS Updater..."
           cd ../../
-          kubectl apply -f tools/dns/duckdns-updater-argocd.yaml
+          kubectl apply -f dns/duckdns-updater-argocd.yaml
           # Trigger immediately
           kubectl create job --from=cronjob/duckdns-updater-argocd duckdns-argocd-init-trigger -n argocd || true
           echo "✅ ArgoCD DuckDNS Updater deployed"
-          
-          # Deploy Applications (App of Apps)
-          echo ""
-          echo "🚀 Deploying Microservices (ArgoCD Apps)..."
-          
-          # Clone argocd repo to get app manifests
-          git clone https://github.com/test-booking-application/argocd.git /tmp/argocd-repo
-          
-          # Apply all application manifests
-          kubectl apply -f /tmp/argocd-repo/argocd-applications/ -n argocd
-          
-          echo "✅ All Applications deployed to ArgoCD!"
       
       - name: Configure GitHub Webhooks
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
