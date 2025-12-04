@@ -303,7 +303,7 @@ jobs:
           echo "=========================================="
           echo ""
           echo "📋 Access Information:"
-          echo "   URL: https://argocd007.duckdns.org"
+          echo "   URL: http://argocd007.duckdns.org"
           echo "   Username: admin"
           echo "   Password: $PASSWORD"
           echo ""
