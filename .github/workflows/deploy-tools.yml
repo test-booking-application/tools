@@ -222,6 +222,8 @@ jobs:
       
       - name: Deploy ArgoCD
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🐙 Deploying ArgoCD..."
           
@@ -263,8 +265,8 @@ jobs:
           echo ""
           echo "🚀 Deploying Microservices (ArgoCD Apps)..."
           
-          # Clone argocd repo to get app manifests
-          git clone https://github.com/test-booking-application/argocd.git /tmp/argocd-repo
+          # Clone argocd repo to get app manifests (using token for authentication)
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/test-booking-application/argocd.git /tmp/argocd-repo
           
           # Apply all application manifests
           kubectl apply -f /tmp/argocd-repo/argocd-applications/ -n argocd
