@@ -265,11 +265,22 @@ jobs:
           echo ""
           echo "🚀 Deploying Microservices (ArgoCD Apps)..."
           
-          # Clone argocd repo to get app manifests (using token for authentication)
-          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/test-booking-application/argocd.git /tmp/argocd-repo
+          # Download and apply each application manifest
+          mkdir -p /tmp/argocd-apps
+          
+          curl -sSL -o /tmp/argocd-apps/frontend-app.yaml \
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/frontend-app.yaml
+          curl -sSL -o /tmp/argocd-apps/ticket-service-app.yaml \
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/ticket-service-app.yaml
+          curl -sSL -o /tmp/argocd-apps/user-service-app.yaml \
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/user-service-app.yaml
+          curl -sSL -o /tmp/argocd-apps/booking-service-app.yaml \
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/booking-service-app.yaml
+          curl -sSL -o /tmp/argocd-apps/api-gateway-app.yaml \
+            https://raw.githubusercontent.com/test-booking-application/argocd/main/argocd-applications/api-gateway-app.yaml
           
           # Apply all application manifests
-          kubectl apply -f /tmp/argocd-repo/argocd-applications/ -n argocd
+          kubectl apply -f /tmp/argocd-apps/ -n argocd
           
           echo "✅ All Applications deployed to ArgoCD!"
       
