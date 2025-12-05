@@ -74,13 +74,23 @@ kubectl create secret generic jenkins-credentials -n jenkins \
   --from-literal=sonar-token="70c0a3a88c94b8692029efb356c3ca49911aef9b" \
   --dry-run=client -o yaml | kubectl apply -f -
 
+# Create Docker Hub credentials
+echo ""
+echo "🐳 Setting up Docker Hub credentials..."
+kubectl create secret generic dockerhub-creds -n jenkins \
+  --from-literal=username="dilipnigam007" \
+  --from-literal=password="zaq1xsw2" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 echo ""
 echo "✅ Secrets created successfully!"
 echo ""
 echo "📋 Summary:"
-echo "  - Secret name: jenkins-credentials"
+echo "  - jenkins-credentials secret:"
+echo "    - Keys: github-token, ecr-password, sonar-token"
+echo "  - dockerhub-creds secret:"
+echo "    - Keys: username, password"
 echo "  - Namespace: jenkins"
-echo "  - Keys: github-token, ecr-password, sonar-token"
 echo ""
 echo "🚀 You can now deploy Jenkins with:"
 echo "   cd tools/cicd/jenkins"
