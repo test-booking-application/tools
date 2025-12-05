@@ -1,0 +1,102 @@
+name: Uninstall All Tools (Cleanup)
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: ticket-booking-eks
+
+jobs:
+  cleanup:
+    name: Uninstall All Tools
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+          
+      - name: Delete Ingress Resources (ALB Cleanup)
+        run: |
+          echo "🧹 Deleting all ingress resources to trigger ALB deletion..."
+          kubectl delete ingress --all --all-namespaces --timeout=60s || echo "Ingress cleanup failed or empty"
+          
+          echo "⏳ Waiting 60s for ALB deletion..."
+          sleep 60
+
+      - name: Uninstall Helm Releases
+        run: |
+          echo "🧹 Uninstalling Helm releases..."
+          
+          # Karpenter
+          helm uninstall karpenter -n karpenter --wait || echo "Karpenter not found"
+          
+          # AWS Load Balancer Controller
+          helm uninstall aws-load-balancer-controller -n kube-system --wait || echo "ALB Controller not found"
+          
+          # ArgoCD
+          helm uninstall argocd -n argocd --wait || echo "ArgoCD not found"
+          
+          # Jenkins
+          helm uninstall jenkins -n jenkins --wait || echo "Jenkins not found"
+          
+          # Monitoring & Logging
+          helm uninstall prometheus -n monitoring --wait || echo "Prometheus not found"
+          helm uninstall grafana -n monitoring --wait || echo "Grafana not found"
+          helm uninstall elasticsearch -n logging --wait || echo "Elasticsearch not found"
+          
+          # External DNS & Nginx
+          helm uninstall external-dns -n external-dns --wait || echo "ExternalDNS not found"
+          helm uninstall nginx-ingress -n ingress-nginx --wait || echo "Nginx not found"
+
+      - name: Delete Namespaces
+        run: |
+          echo "🧹 Deleting namespaces..."
+          NAMESPACES=("karpenter" "argocd" "jenkins" "ingress-nginx" "monitoring" "logging" "dev" "external-dns")
+          
+          for ns in "${NAMESPACES[@]}"; do
+            echo "Deleting namespace $ns..."
+            kubectl delete namespace $ns --timeout=60s --ignore-not-found=true || echo "Failed to delete $ns (might be stuck terminating)"
+          done
+
+      - name: Force Cleanup Load Balancers (Safety Net)
+        run: |
+          echo "🧹 Checking for orphaned Load Balancers..."
+          
+          # 1. Clean up ALB/NLB (v2)
+          echo "Checking ELBv2 (ALB/NLB)..."
+          LBS_V2=$(aws elbv2 describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancers[?VpcId!=null].LoadBalancerArn" --output text)
+          
+          if [ -n "$LBS_V2" ] && [ "$LBS_V2" != "None" ]; then
+             echo "⚠️ Found orphaned ALBs/NLBs. Deleting..."
+             for lb in $LBS_V2; do
+                 echo "Deleting $lb"
+                 aws elbv2 delete-load-balancer --load-balancer-arn $lb --region ${{ env.AWS_REGION }} || echo "Failed to delete $lb"
+             done
+          fi
+
+          # 2. Clean up Classic ELB (v1)
+          echo "Checking ELBv1 (Classic)..."
+          LBS_V1=$(aws elb describe-load-balancers --region ${{ env.AWS_REGION }} --query "LoadBalancerDescriptions[].LoadBalancerName" --output text)
+          
+          if [ -n "$LBS_V1" ] && [ "$LBS_V1" != "None" ]; then
+             echo "⚠️ Found orphaned Classic ELBs. Deleting..."
+             for lb in $LBS_V1; do
+                 echo "Deleting $lb"
+                 aws elb delete-load-balancer --load-balancer-name $lb --region ${{ env.AWS_REGION }} || echo "Failed to delete $lb"
+             done
+          fi
+          
+          echo "⏳ Waiting 30s for LB deletion..."
+          sleep 30
