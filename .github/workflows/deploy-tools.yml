@@ -195,17 +195,30 @@ jobs:
           helm dependency update
           
           # Cleanup stuck releases if any
-          if helm status jenkins -n jenkins >/dev/null 2>&1; then
+          if helm status jenkins -n jenkins > /dev/null 2>&1; then
             STATUS=$(helm status jenkins -n jenkins -o json | jq -r .info.status)
             echo "Current release status: $STATUS"
-            if [ "$STATUS" == "pending-install" ] || [ "$STATUS" == "pending-upgrade" ] || [ "$STATUS" == "failed" ]; then
-              echo "⚠️ Release is in stuck state ($STATUS). Attempting rollback..."
-              helm rollback jenkins -n jenkins || helm uninstall jenkins -n jenkins --wait
+            if [ "$STATUS" == "pending-install" ] || [ "$STATUS" == "pending-upgrade" ] || [ "$STATUS" == "pending-rollback" ] || [ "$STATUS" == "failed" ]; then
+              echo "⚠️ Release is in stuck state ($STATUS). Cleaning up..."
+              
+              # Try rollback first
+              echo "Attempting rollback..."
+              helm rollback jenkins -n jenkins --wait --timeout=2m || {
+                echo "Rollback failed, forcing cleanup..."
+                # Delete the release secret to force cleanup
+                kubectl delete secret -n jenkins -l owner=helm,name=jenkins || true
+                # Uninstall
+                helm uninstall jenkins -n jenkins --wait --timeout=2m || true
+              }
+              
+              # Wait a bit for cleanup
+              sleep 10
             fi
           fi
 
-          # Install with atomic to auto-rollback on failure
-          helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m --atomic
+          # Install without atomic (atomic can cause stuck states)
+          echo "Installing/Upgrading Jenkins..."
+          helm upgrade --install jenkins . -n jenkins --create-namespace -f values.yaml --wait --timeout 10m
           
           kubectl apply -f jenkins-rbac.yaml
           echo "✅ Jenkins deployed with RBAC permissions"

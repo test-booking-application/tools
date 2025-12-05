@@ -26,6 +26,16 @@ jenkins:
           secretKeyRef:
             name: jenkins-credentials
             key: github-token
+      - name: DOCKERHUB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-creds
+            key: username
+      - name: DOCKERHUB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-creds
+            key: password
     
     installPlugins:
       # Core Jackson library - must be first to avoid conflicts
@@ -128,8 +138,14 @@ jenkins:
                         id: "github-token"
                         scope: GLOBAL
                         description: "GitHub Personal Access Token"
-                        username: "${GITHUB_TOKEN}"
-                        password: ""
+                        username: "git"
+                        password: "${GITHUB_TOKEN}"
+                    - usernamePassword:
+                        id: "dockerhub-creds"
+                        scope: GLOBAL
+                        description: "Docker Hub Credentials"
+                        username: "${DOCKERHUB_USERNAME}"
+                        password: "${DOCKERHUB_PASSWORD}"
         
         jobs-config: |
           jobs:
