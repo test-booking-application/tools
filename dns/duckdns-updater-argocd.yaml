@@ -10,8 +10,8 @@ metadata:
   name: duckdns-updater-argocd
   namespace: argocd
 rules:
-- apiGroups: [""]
-  resources: ["services"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
   verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -49,13 +49,13 @@ spec:
             - /bin/sh
             - -c
             - |
-              echo "🔍 Finding ArgoCD LoadBalancer IP..."
+              echo "🔍 Finding ArgoCD Ingress ALB Hostname..."
               
-              # Get LoadBalancer Hostname
-              LB_HOSTNAME=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+              # Get LoadBalancer Hostname from Ingress
+              LB_HOSTNAME=$(kubectl get ingress argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
               
               if [ -z "$LB_HOSTNAME" ]; then
-                echo "❌ Could not find ArgoCD LoadBalancer Hostname. Is the service running?"
+                echo "❌ Could not find ArgoCD Ingress Hostname. Is the ingress created?"
                 exit 1
               fi
               
