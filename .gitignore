@@ -1,0 +1,8 @@
+# Ignore SSL Certificates
+certs/
+*.pem
+*.key
+*.crt
+
+# Ignore local secrets
+.jenkins-github-token
