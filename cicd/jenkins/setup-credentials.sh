@@ -1,13 +1,90 @@
 #!/bin/bash
 
-# Script to create Jenkins credentials as Kubernetes Secrets
-# This is more secure than storing them in values.yaml
+# Script to setup ALL credentials and SSL certificates for the project
+# Handles:
+# 1. AWS ACM Certificates (Import/Reuse)
+# 2. Updating values.yaml with Cert ARNs
+# 3. Jenkins Kubernetes Secrets (GitHub, ECR, DockerHub)
 
 set -e
 
-echo "🔐 Setting up Jenkins Credentials as Kubernetes Secrets"
-echo "========================================================"
+# Find repo root (assuming script is in tools/cicd/jenkins)
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CERT_DIR="$SCRIPT_DIR/certs"
+REGION="us-east-1"
+
+echo "🚀 Starting Full Setup (SSL + Credentials)"
+echo "=========================================="
+echo "Repo Root: $REPO_ROOT"
 echo ""
+
+# Function to get or import certificate
+get_or_import_cert() {
+    DOMAIN=$1
+    SERVICE_NAME=$2
+    LOCAL_CERT_PATH="$CERT_DIR/$SERVICE_NAME"
+    
+    echo "🔍 Checking SSL Cert for $DOMAIN..."
+
+    # Check if cert exists in ACM
+    EXISTING_ARN=$(aws acm list-certificates --region $REGION --query "CertificateSummaryList[?DomainName=='$DOMAIN'].CertificateArn" --output text)
+
+    if [ -n "$EXISTING_ARN" ]; then
+        echo "✅ Found existing AWS ACM certificate: $EXISTING_ARN"
+        CERT_ARN=$EXISTING_ARN
+    else
+        echo "⚠️  No certificate found in AWS. Importing from local files..."
+        
+        if [ ! -f "$LOCAL_CERT_PATH/cert.pem" ]; then
+            echo "❌ Error: Local certificate files not found in $LOCAL_CERT_PATH/"
+            echo "   Please ensure you have generated certs with Certbot and copied them there."
+            echo "   Command to fix: sudo cp /etc/letsencrypt/live/.../*.pem $REPO_ROOT/certs/$SERVICE_NAME/"
+            exit 1
+        fi
+
+        # Import cert
+        CERT_ARN=$(aws acm import-certificate \
+            --certificate fileb://"$LOCAL_CERT_PATH/cert.pem" \
+            --private-key fileb://"$LOCAL_CERT_PATH/privkey.pem" \
+            --certificate-chain fileb://"$LOCAL_CERT_PATH/chain.pem" \
+            --region $REGION \
+            --output text --query CertificateArn)
+            
+        echo "✅ Successfully imported certificate. New ARN: $CERT_ARN"
+    fi
+}
+
+# --- 1. SSL Setup ---
+
+# ArgoCD
+get_or_import_cert "argocd007.duckdns.org" "argocd"
+ARGOCD_ARN=$CERT_ARN
+ARGOCD_VALUES="$REPO_ROOT/argocd/values.yaml"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' "s|alb.ingress.kubernetes.io/certificate-arn:.*|alb.ingress.kubernetes.io/certificate-arn: \"$ARGOCD_ARN\"|g" "$ARGOCD_VALUES"
+else
+  sed -i "s|alb.ingress.kubernetes.io/certificate-arn:.*|alb.ingress.kubernetes.io/certificate-arn: \"$ARGOCD_ARN\"|g" "$ARGOCD_VALUES"
+fi
+echo "📝 Updated ArgoCD values.yaml with ARN"
+
+# Jenkins
+get_or_import_cert "jenkins007.duckdns.org" "jenkins"
+JENKINS_ARN=$CERT_ARN
+JENKINS_VALUES="$REPO_ROOT/tools/cicd/jenkins/values.yaml"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' "s|alb.ingress.kubernetes.io/certificate-arn:.*|alb.ingress.kubernetes.io/certificate-arn: \"$JENKINS_ARN\"|g" "$JENKINS_VALUES"
+else
+  sed -i "s|alb.ingress.kubernetes.io/certificate-arn:.*|alb.ingress.kubernetes.io/certificate-arn: \"$JENKINS_ARN\"|g" "$JENKINS_VALUES"
+fi
+echo "📝 Updated Jenkins values.yaml with ARN"
+echo ""
+
+# --- 2. Kubernetes Secrets Setup ---
+echo "🔐 Setting up Jenkins Secrets..."
+
 
 # Check if namespace exists
 if ! kubectl get namespace jenkins &> /dev/null; then
