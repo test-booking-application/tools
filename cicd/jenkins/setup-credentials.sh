@@ -84,6 +84,7 @@ update_values_file "$REPO_ROOT/tools/cicd/jenkins/values.yaml" "$CERT_ARN"
 # Frontend Setup
 get_or_import_cert "ticketbooking.duckdns.org" "frontend"
 update_values_file "$REPO_ROOT/frontend/charts/frontend/values.yaml" "$CERT_ARN"
+update_values_file "$REPO_ROOT/api-gateway/charts/api-gateway/values.yaml" "$CERT_ARN"
 
 echo "📝 All values.yaml files updated!"
 echo ""
