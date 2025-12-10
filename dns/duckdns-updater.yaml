@@ -77,8 +77,8 @@ spec:
               echo "🔢 Resolved IP: $IP"
               
               # Update DuckDNS
-              echo "🚀 Updating DuckDNS for jenkins007..."
-              URL="https://www.duckdns.org/update?domains=jenkins007&token=45975c84-8d4e-4351-a4ee-e0504f97a17e&ip=$IP"
+              echo "🚀 Updating DuckDNS for jenkins007, argocd007, ticketbooking..."
+              URL="https://www.duckdns.org/update?domains=jenkins007,argocd007,ticketbooking&token=45975c84-8d4e-4351-a4ee-e0504f97a17e&ip=$IP"
               
               RESPONSE=$(curl -s "$URL")
               
