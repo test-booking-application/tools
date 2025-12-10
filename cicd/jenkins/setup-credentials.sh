@@ -55,44 +55,31 @@ get_or_import_cert() {
     fi
 }
 
-# --- 1. SSL & WAF Setup ---
+# --- 1. SSL Setup ---
 
 # Function to update values.yaml with ARNs
 update_values_file() {
     FILE=$1
     CERT_ARN=$2
-    WAF_ARN=$3
     
     echo "📄 Updating $FILE..."
     
     if [[ "$OSTYPE" == "darwin"* ]]; then
       # Mac sed
       sed -i '' "s|alb.ingress.kubernetes.io/certificate-arn:.*|alb.ingress.kubernetes.io/certificate-arn: \"$CERT_ARN\"|g" "$FILE"
-      sed -i '' "s|alb.ingress.kubernetes.io/waf-acl-id:.*|alb.ingress.kubernetes.io/waf-acl-id: \"$WAF_ARN\"|g" "$FILE"
     else
       # Linux sed
       sed -i "s|alb.ingress.kubernetes.io/certificate-arn:.*|alb.ingress.kubernetes.io/certificate-arn: \"$CERT_ARN\"|g" "$FILE"
-      sed -i "s|alb.ingress.kubernetes.io/waf-acl-id:.*|alb.ingress.kubernetes.io/waf-acl-id: \"$WAF_ARN\"|g" "$FILE"
     fi
 }
 
-echo "🛡️  Fetching WAF ARN for 'ticket-booking-waf'..."
-# Fetch WAF ARN from AWS
-WAF_ARN=$(aws wafv2 list-web-acls --scope REGIONAL --region $REGION --output text --query "WebACLs[?Name=='ticket-booking-waf'].ARN")
-
-if [ -z "$WAF_ARN" ]; then
-    echo "❌ Error: WAF 'ticket-booking-waf' not found. Did you run terraform apply?"
-    exit 1
-fi
-echo "✅ Found WAF ARN: $WAF_ARN"
-
 # ArgoCD Setup
 get_or_import_cert "argocd007.duckdns.org" "argocd"
-update_values_file "$REPO_ROOT/argocd/values.yaml" "$CERT_ARN" "$WAF_ARN"
+update_values_file "$REPO_ROOT/argocd/values.yaml" "$CERT_ARN"
 
 # Jenkins Setup
 get_or_import_cert "jenkins007.duckdns.org" "jenkins"
-update_values_file "$REPO_ROOT/tools/cicd/jenkins/values.yaml" "$CERT_ARN" "$WAF_ARN"
+update_values_file "$REPO_ROOT/tools/cicd/jenkins/values.yaml" "$CERT_ARN"
 
 echo "📝 All values.yaml files updated!"
 echo ""

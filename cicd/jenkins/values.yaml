@@ -18,8 +18,7 @@ jenkins:
         alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
         alb.ingress.kubernetes.io/ssl-redirect: '443'
         alb.ingress.kubernetes.io/group.name: "ticket-booking-apps"
-        alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:044302809167:certificate/7c2d90e7-f235-40b9-9761-d71b7405bf35"
-        alb.ingress.kubernetes.io/waf-acl-id: "arn:aws:wafv2:us-east-1:044302809167:regional/webacl/ticket-booking-waf/7edebd9b-38b7-4c21-89a7-f0ff7dc66cd2"
+        alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:044302809167:certificate/aba3d2ec-6ec4-4576-8d41-db508a82eec1"
       hostName: jenkins007.duckdns.org
     
     # Inject secrets as environment variables for JCasC
