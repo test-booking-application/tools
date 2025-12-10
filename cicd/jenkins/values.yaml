@@ -17,6 +17,9 @@ jenkins:
         alb.ingress.kubernetes.io/target-type: ip
         alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
         alb.ingress.kubernetes.io/ssl-redirect: '443'
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/healthcheck-path: "/login"
+        alb.ingress.kubernetes.io/success-codes: "200"
         alb.ingress.kubernetes.io/group.name: "ticket-booking-apps"
         alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:044302809167:certificate/bd45f470-91d3-41b9-a881-d798b424e0ed"
       hostName: jenkins007.duckdns.org
