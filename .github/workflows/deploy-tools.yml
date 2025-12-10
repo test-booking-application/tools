@@ -186,6 +186,26 @@ jobs:
             echo "🗑️ Nginx Ingress removed"
           fi
       
+      - name: Deploy MongoDB
+        if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
+        run: |
+          echo "📦 Installing MongoDB in dev namespace..."
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          
+          # Check if MongoDB is already installed
+          if helm list -n dev | grep -q mongodb; then
+            echo "✅ MongoDB already installed, upgrading..."
+            helm upgrade mongodb bitnami/mongodb --namespace dev --set auth.rootPassword=password123
+          else
+            echo "📥 Installing MongoDB for the first time..."
+            helm install mongodb bitnami/mongodb --namespace dev --create-namespace --set auth.rootPassword=password123
+          fi
+          
+          echo "⏳ Waiting for MongoDB to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mongodb -n dev --timeout=120s || echo "⚠️  MongoDB may still be starting..."
+          echo "✅ MongoDB installation complete"
+      
       - name: Deploy Jenkins (Post-Approval)
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
         run: |
