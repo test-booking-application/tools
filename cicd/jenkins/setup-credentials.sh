@@ -81,6 +81,10 @@ update_values_file "$REPO_ROOT/argocd/values.yaml" "$CERT_ARN"
 get_or_import_cert "jenkins007.duckdns.org" "jenkins"
 update_values_file "$REPO_ROOT/tools/cicd/jenkins/values.yaml" "$CERT_ARN"
 
+# Frontend Setup
+get_or_import_cert "ticketbooking.duckdns.org" "frontend"
+update_values_file "$REPO_ROOT/frontend/charts/frontend/values.yaml" "$CERT_ARN"
+
 echo "📝 All values.yaml files updated!"
 echo ""
 
