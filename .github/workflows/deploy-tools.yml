@@ -206,6 +206,68 @@ jobs:
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mongodb -n dev --timeout=120s || echo "⚠️  MongoDB may still be starting..."
           echo "✅ MongoDB installation complete"
       
+      - name: Deploy Monitoring Stack (Grafana + Loki + Istio + Kiali)
+        if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
+        run: |
+          echo "📊 Installing Monitoring Stack..."
+          
+          # Install Grafana + Loki for centralized logging
+          echo "Installing Grafana + Loki..."
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo update
+          
+          helm upgrade --install loki grafana/loki-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --set grafana.enabled=true \
+            --set prometheus.enabled=true \
+            --set promtail.enabled=true \
+            --set grafana.adminPassword=admin \
+            --wait --timeout 5m
+          
+          echo "✅ Grafana + Loki installed"
+          
+          # Install Istio for service mesh
+          echo "Installing Istio..."
+          helm repo add istio https://istio-release.storage.googleapis.com/charts
+          helm repo update
+          
+          kubectl create namespace istio-system --dry-run=client -o yaml | kubectl apply -f -
+          
+          helm upgrade --install istio-base istio/base \
+            -n istio-system \
+            --wait --timeout 5m
+          
+          helm upgrade --install istiod istio/istiod \
+            -n istio-system \
+            --wait --timeout 5m
+          
+          echo "✅ Istio installed"
+          
+          # Install Kiali for traffic visualization
+          echo "Installing Kiali..."
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons/kiali.yaml
+          
+          echo "Waiting for Kiali to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/kiali -n istio-system || echo "⚠️ Kiali may still be starting"
+          
+          echo "✅ Kiali installed"
+          
+          echo ""
+          echo "=========================================="
+          echo "📊 Monitoring Stack Installed!"
+          echo "=========================================="
+          echo ""
+          echo "Access Grafana (Logs):"
+          echo "  kubectl port-forward -n monitoring svc/loki-grafana 3000:80"
+          echo "  Open: http://localhost:3000"
+          echo "  Username: admin / Password: admin"
+          echo ""
+          echo "Access Kiali (Traffic Visualization):"
+          echo "  kubectl port-forward -n istio-system svc/kiali 20001:20001"
+          echo "  Open: http://localhost:20001"
+          echo ""
+      
       - name: Deploy Jenkins (Post-Approval)
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
         run: |
