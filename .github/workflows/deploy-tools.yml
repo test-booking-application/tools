@@ -282,9 +282,11 @@ jobs:
           echo "    This saves costs - no EBS volumes created"
           echo ""
           echo "To access locally:"
-          echo "  kubectl port-forward -n monitoring svc/loki-grafana 3000:80"
-          echo "  kubectl port-forward -n istio-system svc/kiali 20001:20001"
-          echo "  kubectl port-forward -n monitoring svc/loki-prometheus-server 9090:80"
+          echo "  Run: ./start-monitoring.sh"
+          echo "  Or manually:"
+          echo "    kubectl port-forward -n monitoring svc/loki-grafana 3000:80"
+          echo "    kubectl port-forward -n istio-system svc/kiali 20001:20001"
+          echo "    kubectl port-forward -n monitoring svc/loki-prometheus-server 9090:80"
           echo ""
           
           # Show pod status
