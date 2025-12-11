@@ -206,16 +206,20 @@ jobs:
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mongodb -n dev --timeout=120s || echo "⚠️  MongoDB may still be starting..."
           echo "✅ MongoDB installation complete"
       
-      - name: Deploy Monitoring Stack (Grafana + Loki + Istio + Kiali)
+      - name: Deploy Monitoring Stack (Loki + Grafana + Istio + Kiali)
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
         run: |
           echo "📊 Installing Monitoring Stack..."
+          echo "This will install: Loki, Grafana, Prometheus, Istio, and Kiali"
+          echo ""
           
-          # Install Grafana + Loki for centralized logging
-          echo "Installing Grafana + Loki..."
+          # Add Helm repos
           helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add istio https://istio-release.storage.googleapis.com/charts
           helm repo update
           
+          # Install Loki Stack (Loki + Grafana + Prometheus + Promtail)
+          echo "📊 Installing Loki Stack (Grafana + Loki + Prometheus)..."
           helm upgrade --install loki grafana/loki-stack \
             --namespace monitoring \
             --create-namespace \
@@ -223,50 +227,65 @@ jobs:
             --set prometheus.enabled=true \
             --set promtail.enabled=true \
             --set grafana.adminPassword=admin \
-            --wait --timeout 5m
+            --set grafana.service.type=ClusterIP \
+            --set grafana.persistence.enabled=true \
+            --set grafana.persistence.size=10Gi \
+            --wait --timeout 10m
           
-          echo "✅ Grafana + Loki installed"
+          echo "✅ Loki Stack installed"
           
-          # Install Istio for service mesh
-          echo "Installing Istio..."
-          helm repo add istio https://istio-release.storage.googleapis.com/charts
-          helm repo update
-          
+          # Install Istio
+          echo "📊 Installing Istio..."
           kubectl create namespace istio-system --dry-run=client -o yaml | kubectl apply -f -
           
           helm upgrade --install istio-base istio/base \
             -n istio-system \
+            --set defaultRevision=default \
             --wait --timeout 5m
           
           helm upgrade --install istiod istio/istiod \
             -n istio-system \
-            --wait --timeout 5m
+            --wait --timeout 10m
           
           echo "✅ Istio installed"
           
-          # Install Kiali for traffic visualization
-          echo "Installing Kiali..."
-          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons/kiali.yaml
+          # Install Kiali
+          echo "📊 Installing Kiali..."
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
           
-          echo "Waiting for Kiali to be ready..."
+          echo "⏳ Waiting for Kiali to be ready..."
           kubectl wait --for=condition=available --timeout=300s deployment/kiali -n istio-system || echo "⚠️ Kiali may still be starting"
           
           echo "✅ Kiali installed"
           
+          # Install Jaeger (optional - for distributed tracing)
+          echo "📊 Installing Jaeger..."
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml || echo "⚠️ Jaeger installation skipped"
+          
           echo ""
           echo "=========================================="
-          echo "📊 Monitoring Stack Installed!"
+          echo "✅ Monitoring Stack Installation Complete!"
           echo "=========================================="
           echo ""
-          echo "Access Grafana (Logs):"
+          echo "Installed components:"
+          echo "  ✅ Loki (Log aggregation)"
+          echo "  ✅ Grafana (Visualization) - Port 3000"
+          echo "  ✅ Prometheus (Metrics) - Port 9090"
+          echo "  ✅ Promtail (Log collector)"
+          echo "  ✅ Istio (Service mesh)"
+          echo "  ✅ Kiali (Traffic visualization) - Port 20001"
+          echo "  ✅ Jaeger (Distributed tracing) - Port 16686"
+          echo ""
+          echo "To access locally:"
           echo "  kubectl port-forward -n monitoring svc/loki-grafana 3000:80"
-          echo "  Open: http://localhost:3000"
-          echo "  Username: admin / Password: admin"
-          echo ""
-          echo "Access Kiali (Traffic Visualization):"
           echo "  kubectl port-forward -n istio-system svc/kiali 20001:20001"
-          echo "  Open: http://localhost:20001"
+          echo "  kubectl port-forward -n monitoring svc/loki-prometheus-server 9090:80"
           echo ""
+          
+          # Show pod status
+          echo "Monitoring pods:"
+          kubectl get pods -n monitoring
+          kubectl get pods -n istio-system
       
       - name: Deploy Jenkins (Post-Approval)
         if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'install'
@@ -422,6 +441,26 @@ jobs:
           helm uninstall jenkins -n jenkins || true
           kubectl delete -f cicd/jenkins/jenkins-rbac.yaml || true
           echo "🗑️ Jenkins removed"
+      
+      - name: Uninstall Monitoring Stack
+        if: (github.event.inputs.tool == 'jenkins' || github.event.inputs.tool == 'all') && github.event.inputs.action == 'uninstall'
+        run: |
+          echo "🗑️ Removing Monitoring Stack..."
+          
+          # Uninstall Kiali and Jaeger
+          kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml || true
+          kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml || true
+          
+          # Uninstall Istio
+          helm uninstall istiod -n istio-system || true
+          helm uninstall istio-base -n istio-system || true
+          kubectl delete namespace istio-system || true
+          
+          # Uninstall Loki Stack
+          helm uninstall loki -n monitoring || true
+          kubectl delete namespace monitoring || true
+          
+          echo "✅ Monitoring Stack removed"
       
       - name: Deploy ExternalDNS
         if: github.event.inputs.tool == 'external-dns' || github.event.inputs.tool == 'all'
