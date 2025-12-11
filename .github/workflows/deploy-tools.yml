@@ -228,8 +228,9 @@ jobs:
             --set promtail.enabled=true \
             --set grafana.adminPassword=admin \
             --set grafana.service.type=ClusterIP \
-            --set grafana.persistence.enabled=true \
-            --set grafana.persistence.size=10Gi \
+            --set grafana.persistence.enabled=false \
+            --set loki.persistence.enabled=false \
+            --set prometheus.server.persistentVolume.enabled=false \
             --wait --timeout 10m
           
           echo "✅ Loki Stack installed"
@@ -275,6 +276,10 @@ jobs:
           echo "  ✅ Istio (Service mesh)"
           echo "  ✅ Kiali (Traffic visualization) - Port 20001"
           echo "  ✅ Jaeger (Distributed tracing) - Port 16686"
+          echo ""
+          echo "⚠️  Note: Using ephemeral storage (no persistence)"
+          echo "    Logs are collected in real-time but not saved after pod restart"
+          echo "    This saves costs - no EBS volumes created"
           echo ""
           echo "To access locally:"
           echo "  kubectl port-forward -n monitoring svc/loki-grafana 3000:80"
