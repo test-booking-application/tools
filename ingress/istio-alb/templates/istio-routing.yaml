@@ -2,19 +2,17 @@ apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
   name: main-gateway
-  namespace: dev # Or istio-system, but usually logic lives near the apps
+  namespace: istio-system # Move to istio-system for better visibility
 spec:
   selector:
-    istio: ingressgateway # This must match the label on your gateway pods
+    istio: ingressgateway
   servers:
   - port:
       number: 80
       name: http
       protocol: HTTP
     hosts:
-    - "{{ .Values.domain }}"
-    - "www.{{ .Values.domain }}"
-    - "kiali.{{ .Values.domain }}"
+    - "*" # Allow all hosts for debugging, we will restrict later
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -26,7 +24,7 @@ spec:
   - "{{ .Values.domain }}"
   - "www.{{ .Values.domain }}"
   gateways:
-  - main-gateway
+  - istio-system/main-gateway # Correctly reference the gateway in another namespace
   http:
   - match:
     - uri:
@@ -51,7 +49,7 @@ spec:
   hosts:
   - "kiali.aws.booking007.space"
   gateways:
-  - dev/main-gateway # Reference gateway in the dev namespace
+  - main-gateway
   http:
   - route:
     - destination:
