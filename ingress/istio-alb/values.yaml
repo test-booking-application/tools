@@ -1,3 +1,3 @@
 domain: aws.booking007.space
 certificateArn: arn:aws:acm:us-east-1:044302809167:certificate/5c6b9909-630d-4cc7-a02c-c3e200d800b6
-albGroupName: ticket-booking-apps
+albGroupName: ticket-booking-tools
