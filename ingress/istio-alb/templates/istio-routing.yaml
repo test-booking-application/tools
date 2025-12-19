@@ -1,0 +1,42 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: dev # Or istio-system, but usually logic lives near the apps
+spec:
+  selector:
+    istio: ingressgateway # This must match the label on your gateway pods
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "{{ .Values.domain }}"
+    - "www.{{ .Values.domain }}"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: frontend-route
+  namespace: dev
+spec:
+  hosts:
+  - "{{ .Values.domain }}"
+  - "www.{{ .Values.domain }}"
+  gateways:
+  - main-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api
+    route:
+    - destination:
+        host: api-gateway.dev.svc.cluster.local
+        port:
+          number: 8080
+  - route:
+    - destination:
+        host: frontend.dev.svc.cluster.local
+        port:
+          number: 80
