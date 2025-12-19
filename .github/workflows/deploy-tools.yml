@@ -250,6 +250,10 @@ jobs:
           
           echo "✅ Istio installed"
           
+          # Install Prometheus Addon (Required for Kiali)
+          echo "📊 Installing Prometheus Addon..."
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/prometheus.yaml
+          
           # Install Kiali
           echo "📊 Installing Kiali..."
           kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
@@ -257,7 +261,7 @@ jobs:
           echo "⏳ Waiting for Kiali to be ready..."
           kubectl wait --for=condition=available --timeout=300s deployment/kiali -n istio-system || echo "⚠️ Kiali may still be starting"
           
-          echo "✅ Kiali installed"
+          echo "✅ Kiali and Prometheus installed"
           
           # Install Jaeger (optional - for distributed tracing)
           echo "📊 Installing Jaeger..."
@@ -454,9 +458,10 @@ jobs:
         run: |
           echo "🗑️ Removing Monitoring Stack..."
           
-          # Uninstall Kiali and Jaeger
+          # Uninstall Kiali, Jaeger and Prometheus
           kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml || true
           kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml || true
+          kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/prometheus.yaml || true
           
           # Uninstall Istio
           helm uninstall istiod -n istio-system || true
@@ -514,6 +519,11 @@ jobs:
           echo "   Username: admin"
           echo "   Password: admin"
           echo ""
-          echo "💡 Tip: Use port-forward for consistent localhost access:"
+          echo "� Access Kiali (Traffic Map):"
+          echo "   https://kiali.aws.booking007.space"
+          echo ""
+          echo "�💡 Tip: Use port-forward for consistent localhost access:"
           echo "   kubectl port-forward svc/grafana 3000:80 -n monitoring"
           echo "   kubectl port-forward svc/jenkins 8080:8080 -n jenkins"
+          echo "   kubectl port-forward svc/kiali 20001:20001 -n istio-system"
+          echo "   kubectl port-forward svc/prometheus 9090:9090 -n istio-system"
