@@ -37,3 +37,13 @@ spec:
             name: istio-ingressgateway
             port:
               number: 80
+  - host: kiali.{{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: istio-ingressgateway
+            port:
+              number: 80

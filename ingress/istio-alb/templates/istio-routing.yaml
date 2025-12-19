@@ -14,6 +14,7 @@ spec:
     hosts:
     - "{{ .Values.domain }}"
     - "www.{{ .Values.domain }}"
+    - "kiali.{{ .Values.domain }}"
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -40,3 +41,20 @@ spec:
         host: frontend.dev.svc.cluster.local
         port:
           number: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kiali-route
+  namespace: istio-system
+spec:
+  hosts:
+  - "kiali.aws.booking007.space"
+  gateways:
+  - dev/main-gateway # Reference gateway in the dev namespace
+  http:
+  - route:
+    - destination:
+        host: kiali.istio-system.svc.cluster.local
+        port:
+          number: 20001
