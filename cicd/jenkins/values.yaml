@@ -21,7 +21,7 @@ jenkins:
         alb.ingress.kubernetes.io/healthcheck-path: "/login"
         alb.ingress.kubernetes.io/success-codes: "200"
         alb.ingress.kubernetes.io/group.name: "ticket-booking-tools"
-        alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:044302809167:certificate/2b9d1d0b-e53f-4c54-adb0-1323592331e5"
+        alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:173235558072:certificate/2b9d1d0b-e53f-4c54-adb0-1323592331e5"
       hostName: jenkins007.duckdns.org
     
     # Inject secrets as environment variables for JCasC
